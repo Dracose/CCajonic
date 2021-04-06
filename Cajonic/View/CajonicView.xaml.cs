@@ -18,9 +18,9 @@ namespace Cajonic
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class CajonicView : Window
     {
-        public MainWindow()
+        public CajonicView()
         {
             InitializeComponent();
         }
