@@ -4,5 +4,8 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="z440.atl.core" Version="3.19.0" />
+  </ItemGroup>
 
 </Project>

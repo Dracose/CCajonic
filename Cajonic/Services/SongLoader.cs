@@ -1,4 +1,4 @@
-﻿using AudioWorks.Api;
+﻿using ATL;
 using Cajonic.Model;
 using System;
 using System.Collections.Concurrent;
@@ -15,6 +15,7 @@ namespace Cajonic.Services
     {
         public ImmutableList<Song> Load(string path)
         {
+            path = "E:\\Musique\\Bruton Music - Generation Gap (1981)\\01 - James Asher - Brick In The Wall.m4a";
             FileAttributes fileAttributes = File.GetAttributes(path);
             return fileAttributes.HasFlag(FileAttributes.Directory) ? LoadDirectory(path) : LoadSong(path);
         }
@@ -32,28 +33,28 @@ namespace Cajonic.Services
                 switch (file.Extension.ToLower())
                 {
                     case ".mp3":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".flac":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".wav":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".m4a":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".pcm":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".aiff":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".aac":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     case ".wma":
-                        songs.Add(LoadMp3(file));
+                        songs.Add(LoadMp3(path));
                         break;
                     default:
                         throw new TypeLoadException("This file type is not supported yet.");
@@ -66,43 +67,42 @@ namespace Cajonic.Services
 
         private ImmutableList<Song> LoadSong(string path)
         {
-            TaggedAudioFile audioFile = new TaggedAudioFile(path);
+            Track audioFile = new Track(path);
             return ImmutableList.Create(new Song
             {
-                Title = string.IsNullOrEmpty(audioFile.Metadata.Title) ? string.Empty : audioFile.Metadata.Title,
-                Artist = string.IsNullOrEmpty(audioFile.Metadata.Artist) ? string.Empty : audioFile.Metadata.Artist,
-                Album = string.IsNullOrEmpty(audioFile.Metadata.Album) ? string.Empty : audioFile.Metadata.Album,
-                AlbumArtist = string.IsNullOrEmpty(audioFile.Metadata.AlbumArtist) ? string.Empty : audioFile.Metadata.AlbumArtist,
-                Composer = string.IsNullOrEmpty(audioFile.Metadata.Composer) ? string.Empty : audioFile.Metadata.Composer,
-                Genre = string.IsNullOrEmpty(audioFile.Metadata.Genre) ? string.Empty : audioFile.Metadata.Genre,
-                Year = string.IsNullOrEmpty(audioFile.Metadata.Year) ? null : audioFile.Metadata.Year.ToNullableInt(),
-                TrackNumber = string.IsNullOrEmpty(audioFile.Metadata.TrackNumber) ? null : audioFile.Metadata.TrackNumber.ToNullableInt(),
-                Duration = audioFile.Info.PlayLength,
+                Title = string.IsNullOrEmpty(audioFile.Title) ? string.Empty : audioFile.Title,
+                Artist = string.IsNullOrEmpty(audioFile.Artist) ? string.Empty : audioFile.Artist,
+                Album = string.IsNullOrEmpty(audioFile.Album) ? string.Empty : audioFile.Album,
+                AlbumArtist = string.IsNullOrEmpty(audioFile.AlbumArtist) ? string.Empty : audioFile.AlbumArtist,
+                Composer = string.IsNullOrEmpty(audioFile.Composer) ? string.Empty : audioFile.Composer,
+                Genre = string.IsNullOrEmpty(audioFile.Genre) ? string.Empty : audioFile.Genre,
+                Year = audioFile.Year == 0 ? null : (int?)audioFile.Year,
+                TrackNumber = audioFile.TrackNumber == 0 ? null : (int?)audioFile.TrackNumber,
+                Duration = TimeSpan.FromSeconds(audioFile.Duration),
                 FilePath = path,
-                Lyrics = string.Empty,
+                Lyrics = audioFile.Lyrics == null ? new LyricsInfo() : audioFile.Lyrics,
                 Comments = string.Empty,
-                Artwork = audioFile.Metadata.CoverArt == null ? null : LoadImage(audioFile.Metadata.CoverArt.Data.ToArray())
+                Artwork = audioFile.EmbeddedPictures == null ? null : LoadImage(audioFile.EmbeddedPictures[0].PictureData)
             });
         }
 
-        private Song LoadMp3(FileInfo file)
+        private Song LoadMp3(string path)
         {
-            TaggedAudioFile audioFile = new TaggedAudioFile(file.FullName);
-            audioFile.LoadMetadata();
+            Track audioFile = new Track(path);
             return new Song {
-                Title = string.IsNullOrEmpty(audioFile.Metadata.Title) ? string.Empty : audioFile.Metadata.Title,
-                Artist = string.IsNullOrEmpty(audioFile.Metadata.Artist) ? string.Empty : audioFile.Metadata.Artist,
-                Album = string.IsNullOrEmpty(audioFile.Metadata.Album) ? string.Empty : audioFile.Metadata.Album,
-                AlbumArtist = string.IsNullOrEmpty(audioFile.Metadata.AlbumArtist) ? string.Empty : audioFile.Metadata.AlbumArtist,
-                Composer = string.IsNullOrEmpty(audioFile.Metadata.Composer) ? string.Empty : audioFile.Metadata.Composer,
-                Genre = string.IsNullOrEmpty(audioFile.Metadata.Genre) ? string.Empty : audioFile.Metadata.Genre,
-                Year = string.IsNullOrEmpty(audioFile.Metadata.Year) ? null : audioFile.Metadata.Year.ToNullableInt(),
-                TrackNumber = string.IsNullOrEmpty(audioFile.Metadata.TrackNumber) ? null : audioFile.Metadata.TrackNumber.ToNullableInt(),
-                Duration = audioFile.Info.PlayLength,
-                FilePath = file.FullName,
-                Lyrics = string.Empty,
+                Title = string.IsNullOrEmpty(audioFile.Title) ? string.Empty : audioFile.Title,
+                Artist = string.IsNullOrEmpty(audioFile.Artist) ? string.Empty : audioFile.Artist,
+                Album = string.IsNullOrEmpty(audioFile.Album) ? string.Empty : audioFile.Album,
+                AlbumArtist = string.IsNullOrEmpty(audioFile.AlbumArtist) ? string.Empty : audioFile.AlbumArtist,
+                Composer = string.IsNullOrEmpty(audioFile.Composer) ? string.Empty : audioFile.Composer,
+                Genre = string.IsNullOrEmpty(audioFile.Genre) ? string.Empty : audioFile.Genre,
+                Year = audioFile.Year == 0 ? null : (int?)audioFile.Year,
+                TrackNumber = audioFile.TrackNumber == 0 ? null : (int?)audioFile.TrackNumber,
+                Duration = TimeSpan.FromSeconds(audioFile.Duration),
+                FilePath = path,
+                Lyrics = audioFile.Lyrics == null ? new LyricsInfo() : audioFile.Lyrics,
                 Comments = string.Empty,
-                Artwork = audioFile.Metadata.CoverArt == null ? null : LoadImage(audioFile.Metadata.CoverArt.Data.ToArray())
+                Artwork = audioFile.EmbeddedPictures == null ? null : LoadImage(audioFile.EmbeddedPictures[0].PictureData)
             };
         }
         /**

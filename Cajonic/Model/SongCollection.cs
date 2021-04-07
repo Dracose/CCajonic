@@ -1,5 +1,8 @@
 ﻿using Cajonic.Services;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace Cajonic.Model
@@ -18,6 +21,19 @@ namespace Cajonic.Model
 
         public void Load(string filepath)
         {
+            OpenFileDialog odf = new OpenFileDialog();
+            odf.InitialDirectory = @"C:\";
+            odf.RestoreDirectory = true;
+
+            if (odf.ShowDialog() == true)
+            {
+                filepath = odf.FileName;
+            }
+            else 
+            { 
+                return; 
+            }
+
             var songs = _loader.Load(filepath);
 
             foreach (Song s in songs)

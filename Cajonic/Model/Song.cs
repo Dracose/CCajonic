@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ATL;
+using System;
 using System.Windows.Media.Imaging;
 
 namespace Cajonic.Model
@@ -16,7 +17,7 @@ namespace Cajonic.Model
         public int? DiscNumber { get; set; }
         public int? PlayCount { get; set; }
         public string Comments { get; set; }
-        public string Lyrics { get; set; }
+        public LyricsInfo Lyrics { get; set; }
         public TimeSpan Duration { get; set; }
         public string DisplayDuration
         {
