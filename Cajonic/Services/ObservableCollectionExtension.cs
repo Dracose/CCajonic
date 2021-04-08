@@ -6,9 +6,9 @@ namespace Cajonic.Services
 {
     public static class ObservableCollectionExtension
     {
-        public static void AddUniqueRange<Song>(this ObservableCollection<Song> collection, IEnumerable<Song> songs)
+        public static void AddUniqueRange<TSong>(this ObservableCollection<TSong> collection, IEnumerable<TSong> songs)
         {
-            foreach (Song song in songs)
+            foreach (TSong song in songs)
             {
                 if (!collection.Contains(song))
                 {

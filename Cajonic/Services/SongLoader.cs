@@ -17,7 +17,7 @@ namespace Cajonic.Services
             return fileAttributes.HasFlag(FileAttributes.Directory) ? LoadDirectory(path) : ImmutableList.Create(LoadIndividualSong(path)); ;
         }
 
-        private ImmutableList<Song> LoadDirectory(string path)
+        private static ImmutableList<Song> LoadDirectory(string path)
         {
             ConcurrentBag<Song> songs = new ConcurrentBag<Song>();
             ConcurrentBag<FileInfo> filesBag = new ConcurrentBag<FileInfo>();
@@ -36,26 +36,25 @@ namespace Cajonic.Services
             return songs.ToList().OrderBy(s => s.TrackNumber).ToImmutableList();
         }
 
-        private Song LoadSong(string path)
+        private static Song LoadSong(string path)
         {
-            Track audioFile = new Track(path);
-            return new Song(audioFile);
+            Track track = new Track(path);
+            return new Song(track);
         }
 
-        private Song LoadIndividualSong(string path)
+        private static Song LoadIndividualSong(string path)
         {
-            if (IsSupportedSongExtension(path))
+            if (!IsSupportedSongExtension(path))
             {
-                Track track = new Track(path);
-                return new Song(track);
+                throw new Exception("This type of file isn't supported.");
             }
-            else
-            {
-                throw new Exception("Yo holla at your boy man");
-            }
+
+            Track track = new Track(path);
+            return new Song(track);
+
         }
 
-        private bool IsSupportedSongExtension(string path)
+        private static bool IsSupportedSongExtension(string path)
         {
             // TODO : Check which extensions to add.
             string pathExtension = Path.GetExtension(path);

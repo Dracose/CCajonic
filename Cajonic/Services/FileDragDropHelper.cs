@@ -35,21 +35,22 @@ namespace Cajonic.Services
         private static void OnFileDragDropEnabled(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (e.NewValue == e.OldValue) return;
-            var control = d as Control;
-            if (control != null) control.Drop += OnDrop;
+            if (d is Control control) control.Drop += OnDrop;
         }
 
-        private static void OnDrop(object _sender, DragEventArgs _dragEventArgs)
+        private static void OnDrop(object sender, DragEventArgs dragEventArgs)
         {
-            DependencyObject d = _sender as DependencyObject;
-            if (d == null) return;
-            Object target = d.GetValue(FileDragDropTargetProperty);
-            IFileDragDropTarget fileTarget = target as IFileDragDropTarget;
-            if (fileTarget != null)
+            if (!(sender is DependencyObject d))
             {
-                if (_dragEventArgs.Data.GetDataPresent(DataFormats.FileDrop))
+                return;
+            }
+
+            object target = d.GetValue(FileDragDropTargetProperty);
+            if (target is IFileDragDropTarget fileTarget)
+            {
+                if (dragEventArgs.Data.GetDataPresent(DataFormats.FileDrop))
                 {
-                    fileTarget.OnFileDrop((string[])_dragEventArgs.Data.GetData(DataFormats.FileDrop));
+                    fileTarget.OnFileDrop((string[])dragEventArgs.Data.GetData(DataFormats.FileDrop));
                 }
             }
             else

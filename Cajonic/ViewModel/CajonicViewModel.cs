@@ -7,175 +7,177 @@ using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Windows.Forms;
 using System.Runtime.CompilerServices;
+using System.Windows.Controls;
 
 namespace Cajonic.ViewModel
 {
-    class CajonicViewModel : INotifyPropertyChanged, IFileDragDropTarget
+    public class CajonicViewModel : INotifyPropertyChanged, IFileDragDropTarget, IMusicPlayer
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        private System.Timers.Timer _incrementPlayingProgress;
-        private System.Timers.Timer _findSongEnd;
-        private int _playingIndex;
-        private readonly IMusicPlayer _player;
-        private SongCollection _currentQueue;
-        private double _seconds;
-        private static ISongLoader mSongLoader = new SongLoader();
-        private static SongCollection songCollection = new SongCollection(mSongLoader);
+        private readonly System.Timers.Timer mIncrementPlayingProgress;
+        private readonly System.Timers.Timer mFindSongEnd;
+        private int mPlayingIndex;
+        private readonly IMusicPlayer mMusicPlayer;
+        private readonly SongCollection mCurrentQueue;
+        private double mSeconds;
+        private static readonly ISongLoader SongLoader = new SongLoader();
+        private static SongCollection sSongCollection = new SongCollection(SongLoader);
 
         public ICommand AddToQueueCommand { get; private set; }
         public ICommand ClearQueueCommand { get; private set; }
-        public ICommand PlaySong { get; private set; }
-        public ICommand PauseSong { get; private set; }
-        public ICommand StopSong { get; private set; }
-        public ICommand FastForwardCommand { get; private set; }
-        public ICommand RewindCommand { get; private set; }
+        public ICommand PlaySong { get; }
+        public ICommand PauseSong { get; }
+        public ICommand StopSong { get; }
+        public ICommand FastForwardCommand { get; }
+        public ICommand RewindCommand { get; }
 
-        public CajonicViewModel(IMusicPlayer m)
+        public CajonicViewModel()
         {
             if (DesignerProperties.GetIsInDesignMode(
                 new System.Windows.DependencyObject())) return;
 
-            _seconds = 0;
+            mSeconds = 0;
 
-            _playingSong = new Song();
+            mPlayingSong = new Song();
             QueueInfo = "";
-            _player = m;
+            mMusicPlayer = this;
             ElapsedTime = "00:00 / 00:00";
-            _incrementPlayingProgress = new System.Timers.Timer();
-            _incrementPlayingProgress.Interval = 1000;
-            _currentQueue = new SongCollection(mSongLoader);
-            _incrementPlayingProgress.Elapsed += (sender, e) =>
+            mIncrementPlayingProgress = new System.Timers.Timer { Interval = 1000 };
+            mCurrentQueue = new SongCollection(SongLoader);
+            mIncrementPlayingProgress.Elapsed += (sender, e) =>
             {
-                _seconds += 1000;
+                mSeconds += 1000;
                 PlayingProgress += 1000;
 
-                string displayProgress = TimeSpan.FromMilliseconds(_seconds).ToString("mm\\:ss");
+                string displayProgress = TimeSpan.FromMilliseconds(mSeconds).ToString("mm\\:ss");
                 ElapsedTime = displayProgress + " / " + PlayingSong.DisplayDuration;
             };
 
-            _findSongEnd = new System.Timers.Timer();
-            _findSongEnd.Interval = 1;
-            _findSongEnd.Elapsed += (sender, e) =>
+            mFindSongEnd = new System.Timers.Timer
+            {
+                Interval = 1
+            };
+            mFindSongEnd.Elapsed += (sender, e) =>
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    if (_player.IsDone())
+                    if (!mMusicPlayer.IsDone())
                     {
-                        Debug.WriteLine("Done");
-                        if (++_playingIndex < _currentQueue.SongList.Count)
-                        {
+                        return;
+                    }
 
-                            SelectedSong = _currentQueue.SongList[_playingIndex];
-                            PlaySongAction();
-                        }
-                        else
-                        {
-                            StopSongAction();
-                        }
+                    Debug.WriteLine("Done");
+                    if (++mPlayingIndex < mCurrentQueue.SongList.Count)
+                    {
+                        SelectedSong = mCurrentQueue.SongList[mPlayingIndex];
+                        PlaySongAction();
+                    }
+                    else
+                    {
+                        StopSongAction();
                     }
                 });
             };
 
-            PlaySong = new CommandHandler(() => PlaySongAction(), () => true);
-            PauseSong = new CommandHandler(() => PauseSongAction(), () => true);
-            StopSong = new CommandHandler(() => StopSongAction(), () => true);
-            FastForwardCommand = new CommandHandler(() => FastForwardAction(), () => true);
-            RewindCommand = new CommandHandler(() => RewindAction(), () => true);
+            PlaySong = new CommandHandler(PlaySongAction, () => true);
+            PauseSong = new CommandHandler(PauseSongAction, () => true);
+            StopSong = new CommandHandler(StopSongAction, () => true);
+            FastForwardCommand = new CommandHandler(FastForwardAction, () => true);
+            RewindCommand = new CommandHandler(RewindAction, () => true);
         }
 
         public string QueueFilePath { get; set; }
-        public ObservableCollection<Song> SongList { get { return _currentQueue.SongList; } }
+        public ObservableCollection<Song> SongList => mCurrentQueue.SongList;
 
-        private string _queueInfo;
+        private string mQueueInfo;
         public string QueueInfo
         {
-            get { return _queueInfo; }
+            get => mQueueInfo;
             set
             {
-                _queueInfo = value;
+                mQueueInfo = value;
                 OnPropertyChanged(nameof(QueueInfo));
             }
         }
 
-        private string _artistAlbumInfo;
+        private string mArtistAlbumInfo;
         public string ArtistAlbumInfo
         {
-            get { return _artistAlbumInfo; }
+            get => mArtistAlbumInfo;
             set
             {
-                _artistAlbumInfo = value;
+                mArtistAlbumInfo = value;
                 OnPropertyChanged(nameof(ArtistAlbumInfo));
             }
         }
 
-        private string _trackTitleInfo;
+        private string mTrackTitleInfo;
         public string TrackTitleInfo
         {
-            get { return _trackTitleInfo; }
+            get => mTrackTitleInfo;
             set
             {
-                _trackTitleInfo = value;
+                mTrackTitleInfo = value;
                 OnPropertyChanged(nameof(TrackTitleInfo));
             }
         }
 
-        private Song _selectedSong;
+        private Song mSelectedSong;
         public Song SelectedSong
         {
-            get { return _selectedSong; }
+            get => mSelectedSong;
             set
             {
-                _selectedSong = value;
+                mSelectedSong = value;
                 OnPropertyChanged(nameof(SelectedSong));
             }
         }
 
-        private Song _playingSong;
+        private Song mPlayingSong;
         public Song PlayingSong
         {
-            get { return _playingSong; }
+            get => mPlayingSong;
             set
             {
-                _playingSong = value;
+                mPlayingSong = value;
                 OnPropertyChanged(nameof(PlayingSong));
             }
         }
 
-        private int _selectedIndex;
+        private int mSelectedIndex;
         public int SelectedIndex
         {
-            get { return _selectedIndex; }
+            get => mSelectedIndex;
             set
             {
-                _selectedIndex = value;
+                mSelectedIndex = value;
                 OnPropertyChanged(nameof(SelectedIndex));
             }
         }
 
-        private double _playingProgress;
+        private double mPlayingProgress;
         public double PlayingProgress
         {
-            get => _playingProgress;
+            get => mPlayingProgress;
             set
             {
-                _playingProgress = value;
+                mPlayingProgress = value;
                 OnPropertyChanged(nameof(PlayingProgress));
             }
         }
 
-        private string _elapsedTime;
+        private string mElapsedTime;
         public string ElapsedTime
         {
-            get => PlayingSong != null ? _elapsedTime : "00:00 / " + "00:00";
+            get => PlayingSong != null ? mElapsedTime : "00:00 / " + "00:00";
             set
             {
-                _elapsedTime = value;
+                mElapsedTime = value;
                 OnPropertyChanged(nameof(ElapsedTime));
             }
         }
 
-
-        #region CommandActions
+        
         private void AddToQueueAction()
         {
             OpenFileDialog fileDialog = new OpenFileDialog
@@ -194,42 +196,42 @@ namespace Cajonic.ViewModel
                 return;
             }
 
-            _currentQueue.Load(QueueFilePath);
+            mCurrentQueue.Load(QueueFilePath);
 
-            if (_currentQueue.SongList.Count > 0)
+            if (mCurrentQueue.SongList.Count > 0)
             {
-                double queueDuration = _currentQueue.TotalSeconds();
+                double queueDuration = mCurrentQueue.TotalSeconds();
                 string format = "hh\\:mm\\:ss";
                 if (queueDuration < 3600)
                 {
                     format = "mm\\:ss";
                 }
                 TimeSpan totalDuration = TimeSpan.FromSeconds(queueDuration);
-                QueueInfo = _currentQueue.SongList.Count + " songs - " + totalDuration.ToString(format);
+                QueueInfo = mCurrentQueue.SongList.Count + " songs - " + totalDuration.ToString(format);
             }
         }
 
         private void ClearQueueAction()
         {
-            _currentQueue.SongList.Clear();
+            mCurrentQueue.SongList.Clear();
             QueueInfo = "";
         }
 
         private void PlaySongAction()
         {
-            if (PlayingSong.FilePath != SelectedSong.FilePath)
+            if (PlayingSong?.FilePath != SelectedSong?.FilePath)
             {
                 StopSongAction();
                 PlayingSong = SelectedSong;
-                _playingIndex = SelectedIndex;
+                mPlayingIndex = SelectedIndex;
                 ArtistAlbumInfo = PlayingSong.Artist + " - " + PlayingSong.Album + " [" + PlayingSong.Year + "]";
                 TrackTitleInfo = PlayingSong.TrackNumber + ". " + PlayingSong.Title;
-                _player.Play(new Uri(PlayingSong.FilePath));
+                mMusicPlayer.Play(new Uri(PlayingSong.FilePath));
                 OnPropertyChanged(nameof(ElapsedTime));
             }
             else
             {
-                _player.Play();
+                mPlayer.Play();
             }
             StartTimers();
         }
@@ -237,38 +239,38 @@ namespace Cajonic.ViewModel
         private void PauseSongAction()
         {
             StopTimers();
-            _player.Pause();
+            mPlayer.Pause();
         }
 
         private void StopSongAction()
         {
-            _player.Stop();
+            mPlayer.Stop();
             StopTimers();
             PlayingProgress = 0;
-            _seconds = 0;
+            mSeconds = 0;
             PlayingSong = null;
             OnPropertyChanged(nameof(ElapsedTime));
         }
 
         private void FastForwardAction()
         {
-            _player.FastForward(10000);
+            mMusicPlayer.FastForward(10000);
 
-            _seconds += 10000;
+            mSeconds += 10000;
             PlayingProgress += 10000;
 
-            string displayProgress = TimeSpan.FromMilliseconds(_seconds).ToString("mm\\:ss");
+            string displayProgress = TimeSpan.FromMilliseconds(mSeconds).ToString("mm\\:ss");
             ElapsedTime = displayProgress + " / " + PlayingSong.DisplayDuration;
         }
 
         private void RewindAction()
         {
-            _player.Rewind(10000);
-            _seconds -= 10000;
+            mMusicPlayer.Rewind(10000);
+            mSeconds -= 10000;
             PlayingProgress -= 10000;
-            if (_seconds < 0)
+            if (mSeconds < 0)
             {
-                _seconds = 0;
+                mSeconds = 0;
             }
 
             if (PlayingProgress < 0)
@@ -276,25 +278,21 @@ namespace Cajonic.ViewModel
                 PlayingProgress = 0;
             }
 
-            string displayProgress = TimeSpan.FromMilliseconds(_seconds).ToString("mm\\:ss");
+            string displayProgress = TimeSpan.FromMilliseconds(mSeconds).ToString("mm\\:ss");
             ElapsedTime = displayProgress + " / " + PlayingSong.DisplayDuration;
         }
 
-        #endregion
-
-        #region TimerControls
         private void StopTimers()
         {
-            _incrementPlayingProgress.Stop();
-            _findSongEnd.Stop();
+            mIncrementPlayingProgress.Stop();
+            mFindSongEnd.Stop();
         }
 
         private void StartTimers()
         {
-            _incrementPlayingProgress.Start();
-            _findSongEnd.Start();
+            mIncrementPlayingProgress.Start();
+            mFindSongEnd.Start();
         }
-        #endregion
 
         protected void OnPropertyChanged([CallerMemberName] string name = null)
         {
@@ -307,7 +305,7 @@ namespace Cajonic.ViewModel
             {
                 foreach (string filepath in filepaths)
                 {
-                    SongList.AddUniqueRange(mSongLoader.Load(filepath));
+                    SongList.AddUniqueRange(SongLoader.Load(filepath));
                 }
                 OnPropertyChanged(nameof(SongList));
             }
@@ -315,6 +313,53 @@ namespace Cajonic.ViewModel
             {
                 DialogResult _ = MessageBox.Show("This format is not supported by Cajonic", "Format not supported", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
+        }
+
+        private MediaElement mPlayer = new MediaElement { LoadedBehavior = MediaState.Manual };
+        public MediaElement Player
+        {
+            get => mPlayer;
+            set
+            {
+                mPlayer = value; OnPropertyChanged(nameof(Player));
+            }
+        }
+
+        public void Play(Uri filePath)
+        {
+            Player.Source = filePath;
+            Player.Play();
+        }
+
+        public void Play()
+        {
+            Player.Play();
+        }
+
+        public void Pause()
+        {
+            Player.Pause();
+        }
+
+        public void Stop()
+        {
+            Player.Stop();
+
+        }
+
+        public void FastForward(double milliseconds)
+        {
+            Player.Position += TimeSpan.FromMilliseconds(milliseconds);
+        }
+
+        public void Rewind(double milliseconds)
+        {
+            Player.Position -= TimeSpan.FromMilliseconds(milliseconds);
+        }
+
+        public bool IsDone()
+        {
+            return Player.Position >= Player.NaturalDuration;
         }
     }
 }

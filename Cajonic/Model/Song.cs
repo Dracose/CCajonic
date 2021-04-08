@@ -8,6 +8,8 @@ namespace Cajonic.Model
 {
     public class Song : IEquatable<Song>
     {
+        private string mFilePath;
+
         public Song(Track track)
         {
             Title = string.IsNullOrEmpty(track.Title) ? string.Empty : track.Title;
@@ -18,9 +20,10 @@ namespace Cajonic.Model
             Genre = string.IsNullOrEmpty(track.Genre) ? string.Empty : track.Genre;
             Year = track.Year == 0 ? null : (int?)track.Year;
             TrackNumber = track.TrackNumber == 0 ? null : (int?)track.TrackNumber;
-            Duration = TimeSpan.FromSeconds(track.Duration);
+            Duration = TimeSpan.FromMilliseconds(track.DurationMs);
+            DiscNumber = track.DiscNumber == 0 ? null : (int?) track.DiscNumber;
             FilePath = track.Path;
-            Lyrics = track.Lyrics == null ? new LyricsInfo() : track.Lyrics;
+            Lyrics = track.Lyrics ?? new LyricsInfo();
             Comments = string.Empty;
             Artwork = track.EmbeddedPictures == null ? null : LoadImage(track.EmbeddedPictures[0].PictureData);
         }
@@ -40,15 +43,15 @@ namespace Cajonic.Model
         public string Comments { get; set; }
         public LyricsInfo Lyrics { get; set; }
         public TimeSpan Duration { get; set; }
-        public string DisplayDuration
-        {
-            get
-            {
-                return Duration.ToString("mm\\:ss");
-            }
-        }
+        public string DisplayDuration => Duration.Days != 0 ? Duration.ToString("dd\\:hh\\:mm\\:ss") : Duration.ToString(Duration.Hours != 0 ? "hh\\:mm\\:ss" : "mm\\:ss");
+
         public BitmapImage Artwork { get; set; }
-        public string FilePath { get; set; }
+
+        public string FilePath
+        {
+            get => string.IsNullOrEmpty(mFilePath) ? string.Empty : mFilePath;
+            set => mFilePath = value;
+        }
 
         private static BitmapImage LoadImage(byte[] imageData)
         {
@@ -72,14 +75,8 @@ namespace Cajonic.Model
             return image;
         }
 
-        public override int GetHashCode()
-        {
-            return FilePath?.GetHashCode() ?? base.GetHashCode();
-        }
+        public override int GetHashCode() => FilePath?.GetHashCode() ?? base.GetHashCode();
 
-        public bool Equals([AllowNull] Song other)
-        {
-            return other?.FilePath == FilePath;
-        }
+        public bool Equals([AllowNull] Song other) => other?.FilePath == FilePath;
     }
 }

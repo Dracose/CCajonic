@@ -1,27 +1,25 @@
-﻿using Cajonic.Services;
-using Microsoft.Win32;
+﻿using System.Collections.Immutable;
+using Cajonic.Services;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 
 namespace Cajonic.Model
 {
     public class SongCollection
     {
-        private readonly ISongLoader _loader;
+        private readonly ISongLoader mLoader;
 
         public ObservableCollection<Song> SongList { get; }
 
-        public SongCollection(ISongLoader ql)
+        public SongCollection(ISongLoader songLoader)
         {
             SongList = new ObservableCollection<Song>();
-            _loader = ql;
+            mLoader = songLoader;
         }
 
         public void Load(string filepath)
         {
-            var songs = _loader.Load(filepath);
+            ImmutableList<Song> songs = mLoader.Load(filepath);
 
             foreach (Song s in songs)
             {

@@ -8,7 +8,6 @@ namespace Cajonic.Services
 {
     public interface ISongLoader
     {
-        // This is where you get the metadata you want, and potentially make this function parallelized
         ImmutableList<Song> Load(string path);
     }
 }
