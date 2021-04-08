@@ -21,19 +21,6 @@ namespace Cajonic.Model
 
         public void Load(string filepath)
         {
-            OpenFileDialog odf = new OpenFileDialog();
-            odf.InitialDirectory = @"C:\";
-            odf.RestoreDirectory = true;
-
-            if (odf.ShowDialog() == true)
-            {
-                filepath = odf.FileName;
-            }
-            else 
-            { 
-                return; 
-            }
-
             var songs = _loader.Load(filepath);
 
             foreach (Song s in songs)

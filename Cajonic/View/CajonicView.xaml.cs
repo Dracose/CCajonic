@@ -18,9 +18,7 @@ namespace Cajonic
         {
             InitializeComponent();
             Player.LoadedBehavior = MediaState.Manual;
-            ISongLoader ql = new SongLoader();
-            SongCollection collection = new SongCollection(ql);
-            vm = new CajonicViewModel(this, collection);
+            vm = new CajonicViewModel(this);
             DataContext = vm;
         }
         public void ListViewItem_MouseDoubleClick(object sender, MouseEventArgs e)
