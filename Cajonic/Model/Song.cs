@@ -8,21 +8,21 @@ namespace Cajonic.Model
 {
     public class Song : IEquatable<Song>
     {
-        public Song(Track audioFile)
+        public Song(Track track)
         {
-            Title = string.IsNullOrEmpty(audioFile.Title) ? string.Empty : audioFile.Title;
-            Artist = string.IsNullOrEmpty(audioFile.Artist) ? string.Empty : audioFile.Artist;
-            Album = string.IsNullOrEmpty(audioFile.Album) ? string.Empty : audioFile.Album;
-            AlbumArtist = string.IsNullOrEmpty(audioFile.AlbumArtist) ? string.Empty : audioFile.AlbumArtist;
-            Composer = string.IsNullOrEmpty(audioFile.Composer) ? string.Empty : audioFile.Composer;
-            Genre = string.IsNullOrEmpty(audioFile.Genre) ? string.Empty : audioFile.Genre;
-            Year = audioFile.Year == 0 ? null : (int?)audioFile.Year;
-            TrackNumber = audioFile.TrackNumber == 0 ? null : (int?)audioFile.TrackNumber;
-            Duration = TimeSpan.FromSeconds(audioFile.Duration);
-            FilePath = audioFile.Path;
-            Lyrics = audioFile.Lyrics == null ? new LyricsInfo() : audioFile.Lyrics;
+            Title = string.IsNullOrEmpty(track.Title) ? string.Empty : track.Title;
+            Artist = string.IsNullOrEmpty(track.Artist) ? string.Empty : track.Artist;
+            Album = string.IsNullOrEmpty(track.Album) ? string.Empty : track.Album;
+            AlbumArtist = string.IsNullOrEmpty(track.AlbumArtist) ? string.Empty : track.AlbumArtist;
+            Composer = string.IsNullOrEmpty(track.Composer) ? string.Empty : track.Composer;
+            Genre = string.IsNullOrEmpty(track.Genre) ? string.Empty : track.Genre;
+            Year = track.Year == 0 ? null : (int?)track.Year;
+            TrackNumber = track.TrackNumber == 0 ? null : (int?)track.TrackNumber;
+            Duration = TimeSpan.FromSeconds(track.Duration);
+            FilePath = track.Path;
+            Lyrics = track.Lyrics == null ? new LyricsInfo() : track.Lyrics;
             Comments = string.Empty;
-            Artwork = audioFile.EmbeddedPictures == null ? null : LoadImage(audioFile.EmbeddedPictures[0].PictureData);
+            Artwork = track.EmbeddedPictures == null ? null : LoadImage(track.EmbeddedPictures[0].PictureData);
         }
 
         public Song() { }

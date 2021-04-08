@@ -12,7 +12,7 @@ namespace Cajonic.Services
     public class SongLoader : ISongLoader
     {
         public ImmutableList<Song> Load(string path)
-        {
+        { 
             FileAttributes fileAttributes = File.GetAttributes(path);
             return fileAttributes.HasFlag(FileAttributes.Directory) ? LoadDirectory(path) : ImmutableList.Create(LoadIndividualSong(path)); ;
         }
@@ -46,8 +46,8 @@ namespace Cajonic.Services
         {
             if (IsSupportedSongExtension(path))
             {
-                Track audioFile = new Track(path);
-                return new Song(audioFile);
+                Track track = new Track(path);
+                return new Song(track);
             }
             else
             {
@@ -57,40 +57,20 @@ namespace Cajonic.Services
 
         private bool IsSupportedSongExtension(string path)
         {
+            // TODO : Check which extensions to add.
             string pathExtension = Path.GetExtension(path);
-            switch (pathExtension)
+            return pathExtension switch
             {
-                case ".mp3":
-                    return true;
-                case ".flac":
-                    return true;
-                case ".wav":
-                    return true;
-                case ".m4a":
-                    return true;
-                case ".pcm":
-                    return true;
-                case ".aiff":
-                    return true;
-                case ".aac":
-                    return true;
-                case ".wma":
-                    return true;
-                default:
-                    return false;
-            }
+                ".mp3" => true,
+                ".flac" => true,
+                ".wav" => true,
+                ".m4a" => true,
+                ".pcm" => true,
+                ".aiff" => true,
+                ".aac" => true,
+                ".wma" => true,
+                _ => false,
+            };
         }
-
-        /**
-        private Song LoadFlac(FileInfo file) { throw new NotImplementedException(); }
-        private Song LoadWav(FileInfo file) { throw new NotImplementedException(); }
-        public Song LoadM4a(FileInfo file) { throw new NotImplementedException(); }
-        public Song LoadOpus(FileInfo file) { throw new NotImplementedException(); }
-        public Song LoadOggVorbis(FileInfo file) { throw new NotImplementedException(); }
-        public Song LoadAac(FileInfo file) { throw new NotImplementedException(); }
-        public Song LoadWma(FileInfo file) { throw new NotImplementedException(); }
-
-        
-        */
     }
 }

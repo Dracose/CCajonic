@@ -26,7 +26,6 @@ namespace Cajonic
             vm.PlaySong.Execute(null);
         }
 
-        #region IMusicPlayer
         public void Play(Uri filePath)
         {
             Player.Source = filePath;
@@ -63,6 +62,5 @@ namespace Cajonic
         {
             return Player.Position >= Player.NaturalDuration;
         }
-        #endregion
     }
 }
