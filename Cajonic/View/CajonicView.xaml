@@ -6,7 +6,6 @@
         mc:Ignorable="d"
         xmlns:services="clr-namespace:Cajonic.Services"
         xmlns:viewModel="clr-namespace:Cajonic.ViewModel"
-        xmlns:controls="clr-namespace:Cajonic.Services.Controls"
         AllowDrop="True" 
         services:FileDragDropHelper.IsFileDragDropEnabled="True" 
         services:FileDragDropHelper.FileDragDropTarget="{Binding}"
