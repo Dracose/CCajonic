@@ -3,12 +3,26 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Windows.Media.Imaging;
+using Cajonic.Services;
+using Cajonic.Services.Wrappers;
 
 namespace Cajonic.Model
 {
+    [Serializable]
     public class Song : IEquatable<Song>
     {
         private string mFilePath;
+        private string mBinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cajonic\\SaveData\\Songs.bin");
+
+        [NonSerialized]
+        private BitmapImage mArtwork;
+        public BitmapImage Artwork
+        {
+            get => mArtwork;
+            set => mArtwork = value;
+        }
+
+        private byte[] mByteArtwork;
 
         public Song(Track track)
         {
@@ -23,9 +37,12 @@ namespace Cajonic.Model
             Duration = TimeSpan.FromMilliseconds(track.DurationMs);
             DiscNumber = track.DiscNumber == 0 ? null : (int?) track.DiscNumber;
             FilePath = track.Path;
-            Lyrics = track.Lyrics ?? new LyricsInfo();
+            Lyrics = track.Lyrics == null ? new SerializableLyricsInfo() : new SerializableLyricsInfo(track.Lyrics);
             Comments = string.Empty;
             Artwork = track.EmbeddedPictures == null ? null : LoadImage(track.EmbeddedPictures[0].PictureData);
+            mByteArtwork = ConvertToBytes(Artwork);
+            //On a different thread
+            BinarySerialization.WriteToBinaryFile(mBinaryFilePath, this);
         }
 
         public Song() { }
@@ -41,11 +58,9 @@ namespace Cajonic.Model
         public int? DiscNumber { get; set; }
         public int? PlayCount { get; set; }
         public string Comments { get; set; }
-        public LyricsInfo Lyrics { get; set; }
+        public SerializableLyricsInfo Lyrics { get; set; }
         public TimeSpan Duration { get; set; }
         public string DisplayDuration => Duration.Days != 0 ? Duration.ToString("dd\\:hh\\:mm\\:ss") : Duration.ToString(Duration.Hours != 0 ? "hh\\:mm\\:ss" : "mm\\:ss");
-
-        public BitmapImage Artwork { get; set; }
 
         public string FilePath
         {
@@ -73,6 +88,16 @@ namespace Cajonic.Model
             }
             image.Freeze();
             return image;
+        }
+
+        private static byte[] ConvertToBytes(BitmapImage bitmapImage)
+        {
+            BitmapEncoder encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create(bitmapImage));
+            using MemoryStream ms = new MemoryStream();
+            encoder.Save(ms);
+
+            return ms.ToArray();
         }
 
         public override int GetHashCode() => FilePath?.GetHashCode() ?? base.GetHashCode();

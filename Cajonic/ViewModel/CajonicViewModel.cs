@@ -5,6 +5,7 @@ using Cajonic.Model;
 using System.Windows.Input;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Forms;
 using System.Runtime.CompilerServices;
 using System.Windows.Controls;
@@ -22,6 +23,7 @@ namespace Cajonic.ViewModel
         private double mSeconds;
         private static readonly ISongLoader SongLoader = new SongLoader();
         private static SongCollection sSongCollection = new SongCollection(SongLoader);
+        private string mBinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cajonic\\SaveData\\Songs.bin");
 
         public ICommand AddToQueueCommand { get; private set; }
         public ICommand ClearQueueCommand { get; private set; }
@@ -309,9 +311,9 @@ namespace Cajonic.ViewModel
                 }
                 OnPropertyChanged(nameof(SongList));
             }
-            catch
+            catch (Exception e)
             {
-                DialogResult _ = MessageBox.Show("This format is not supported by Cajonic", "Format not supported", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                DialogResult _ = MessageBox.Show(e.Message, "Error adding song", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
