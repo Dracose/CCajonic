@@ -4,6 +4,7 @@ using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.IO;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -11,47 +12,76 @@ namespace Cajonic.Services
 {
     public class SongLoader : ISongLoader
     {
-        public ImmutableList<Song> Load(string path)
+        public ImmutableList<Song> Load(string path, ICollection<Artist> artists)
         { 
             FileAttributes fileAttributes = File.GetAttributes(path);
-            return fileAttributes.HasFlag(FileAttributes.Directory) ? LoadDirectory(path) : ImmutableList.Create(LoadIndividualSong(path)); ;
+            return fileAttributes.HasFlag(FileAttributes.Directory) ? LoadDirectory(path, artists) : ImmutableList.Create(LoadIndividualSong(path, artists));
         }
 
-        private static ImmutableList<Song> LoadDirectory(string path)
+        private static ImmutableList<Song> LoadDirectory(string path, ICollection<Artist> artists)
         {
-            ConcurrentBag<Song> songs = new ConcurrentBag<Song>();
-            ConcurrentBag<FileInfo> filesBag = new ConcurrentBag<FileInfo>();
-
+            List<Song> songs = new List<Song>();
             DirectoryInfo directory = new DirectoryInfo(path);
-            filesBag.AddRange(directory.GetFiles());
 
-            Parallel.ForEach(filesBag, file =>
+            foreach(FileInfo file in directory.GetFiles())
             {
-                if (IsSupportedSongExtension(file.FullName))
+                if (!IsSupportedSongExtension(file.FullName))
                 {
-                    songs.Add(LoadSong(file.FullName));
+                    continue;
                 }
-            });
+
+                Song song = LoadSong(file.FullName, artists);
+                songs.Add(song);
+                if (artists != null && !artists.Contains(song.Artist))
+                {
+                    artists.Add(song.Artist);
+                }
+            }
 
             return songs.ToList().OrderBy(s => s.TrackNumber).ToImmutableList();
         }
 
-        private static Song LoadSong(string path)
+        private static Song LoadSong(string path, IEnumerable<Artist> artists = null)
         {
             Track track = new Track(path);
+
+            if (artists == null)
+            {
+                return new Song(track);
+            }
+
+            List<Artist> artistsList = artists.ToList();
+            if (!artistsList.Any())
+            {
+                return new Song(track);
+            }
+
+            foreach (Artist artist in artistsList)
+            {
+                if (artist.ArtistAlbums.Select(x => x.Title).Contains(track.Album))
+                {
+                    Album relevantAlbum = artist.ArtistAlbums.FirstOrDefault(x => x.Title == track.Artist);
+                    return new Song(track, relevantAlbum, artist);
+                }
+
+                if (artist.Name == track.Artist)
+                {
+                    return new Song(track, null, artist);
+                }
+            }
+            
             return new Song(track);
+
         }
 
-        private static Song LoadIndividualSong(string path)
+        private static Song LoadIndividualSong(string path, IEnumerable<Artist> artists = null)
         {
             if (!IsSupportedSongExtension(path))
             {
                 throw new Exception("This type of file isn't supported.");
             }
 
-            Track track = new Track(path);
-            return new Song(track);
-
+            return LoadSong(path, artists);
         }
 
         private static bool IsSupportedSongExtension(string path)

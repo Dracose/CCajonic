@@ -2,33 +2,27 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Windows.Media.Imaging;
 using Cajonic.Services;
 using Cajonic.Services.Wrappers;
+using ProtoBuf;
 
 namespace Cajonic.Model
 {
-    [Serializable]
+    [ProtoContract]
     public class Song : IEquatable<Song>
     {
+        [ProtoMember(1)]
         private string mFilePath;
-        private string mBinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cajonic\\SaveData\\Songs.bin");
 
-        [NonSerialized]
-        private BitmapImage mArtwork;
-        public BitmapImage Artwork
-        {
-            get => mArtwork;
-            set => mArtwork = value;
-        }
+        public byte[] ByteArtwork;
 
-        private byte[] mByteArtwork;
-
-        public Song(Track track)
+        public Song(Track track, Album album = null, Artist artist = null)
         {
             Title = string.IsNullOrEmpty(track.Title) ? string.Empty : track.Title;
-            Artist = string.IsNullOrEmpty(track.Artist) ? string.Empty : track.Artist;
-            Album = string.IsNullOrEmpty(track.Album) ? string.Empty : track.Album;
+            ArtistName = string.IsNullOrEmpty(track.Artist) ? string.Empty : track.Artist;
+            AlbumTitle = string.IsNullOrEmpty(track.Album) ? string.Empty : track.Album;
             AlbumArtist = string.IsNullOrEmpty(track.AlbumArtist) ? string.Empty : track.AlbumArtist;
             Composer = string.IsNullOrEmpty(track.Composer) ? string.Empty : track.Composer;
             Genre = string.IsNullOrEmpty(track.Genre) ? string.Empty : track.Genre;
@@ -39,26 +33,71 @@ namespace Cajonic.Model
             FilePath = track.Path;
             Lyrics = track.Lyrics == null ? new SerializableLyricsInfo() : new SerializableLyricsInfo(track.Lyrics);
             Comments = string.Empty;
-            Artwork = track.EmbeddedPictures == null ? null : LoadImage(track.EmbeddedPictures[0].PictureData);
-            mByteArtwork = ConvertToBytes(Artwork);
-            //On a different thread
-            BinarySerialization.WriteToBinaryFile(mBinaryFilePath, this);
+            //Don't save the artwork.
+            ByteArtwork = track.EmbeddedPictures.FirstOrDefault().PictureData;
+
+            if (album != null)
+            {
+                album.AlbumSongCollection.Add(this);
+                Album = album;
+            }
+            else 
+            {
+                Album = new Album(this);
+            }
+
+            if (artist != null)
+            {
+                if (artist.ArtistAlbums.Contains(Album))
+                {
+                    artist.ArtistAlbums.Remove(artist.ArtistAlbums.FirstOrDefault(x => x == Album));
+                    artist.ArtistAlbums.Add(Album);
+                }
+                else
+                {
+                    artist.ArtistAlbums.Add(Album);
+                }
+
+                Artist = artist;
+                artist.SerializeArtistAsync();
+            }
+            else
+            {
+                Artist = new Artist(this);
+            }
         }
 
-        public Song() { }
+        public Song()
+        {
+        }
 
+        [ProtoMember(3)]
+        public string ArtistName { get; set; }
+        [ProtoMember(4)]
+        public string AlbumTitle { get; set; }
+        [ProtoMember(5)]
         public string Title { get; set; }
-        public string Artist { get; set; }
+        public Artist Artist { get; set; }
+        [ProtoMember(7)]
         public string AlbumArtist { get; set; }
-        public string Album { get; set; }
+        public Album Album { get; set; }
+        [ProtoMember(9)]
         public string Composer { get; set; }
+        [ProtoMember(10)]
         public string Genre { get; set; }
+        [ProtoMember(11)]
         public int? Year { get; set; }
+        [ProtoMember(12)]
         public int? TrackNumber { get; set; }
+        [ProtoMember(13)]
         public int? DiscNumber { get; set; }
+        [ProtoMember(14)]
         public int? PlayCount { get; set; }
+        [ProtoMember(15)]
         public string Comments { get; set; }
+        [ProtoMember(16)]
         public SerializableLyricsInfo Lyrics { get; set; }
+        [ProtoMember(17)]
         public TimeSpan Duration { get; set; }
         public string DisplayDuration => Duration.Days != 0 ? Duration.ToString("dd\\:hh\\:mm\\:ss") : Duration.ToString(Duration.Hours != 0 ? "hh\\:mm\\:ss" : "mm\\:ss");
 
@@ -66,38 +105,6 @@ namespace Cajonic.Model
         {
             get => string.IsNullOrEmpty(mFilePath) ? string.Empty : mFilePath;
             set => mFilePath = value;
-        }
-
-        private static BitmapImage LoadImage(byte[] imageData)
-        {
-            if (imageData == null || imageData.Length == 0)
-            {
-                return null;
-            }
-
-            BitmapImage image = new BitmapImage();
-            using (MemoryStream mem = new MemoryStream(imageData))
-            {
-                mem.Position = 0;
-                image.BeginInit();
-                image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
-                image.CacheOption = BitmapCacheOption.OnLoad;
-                image.UriSource = null;
-                image.StreamSource = mem;
-                image.EndInit();
-            }
-            image.Freeze();
-            return image;
-        }
-
-        private static byte[] ConvertToBytes(BitmapImage bitmapImage)
-        {
-            BitmapEncoder encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bitmapImage));
-            using MemoryStream ms = new MemoryStream();
-            encoder.Save(ms);
-
-            return ms.ToArray();
         }
 
         public override int GetHashCode() => FilePath?.GetHashCode() ?? base.GetHashCode();

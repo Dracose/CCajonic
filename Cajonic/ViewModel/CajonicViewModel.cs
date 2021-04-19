@@ -6,6 +6,7 @@ using System.Windows.Input;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using System.Runtime.CompilerServices;
 using System.Windows.Controls;
@@ -14,6 +15,8 @@ namespace Cajonic.ViewModel
 {
     public class CajonicViewModel : INotifyPropertyChanged, IFileDragDropTarget, IMusicPlayer
     {
+        //serialize file paths and read a list of filepaths from this, then call reserialize.
+        private readonly string mArtistDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists");
         public event PropertyChangedEventHandler PropertyChanged;
         private readonly System.Timers.Timer mIncrementPlayingProgress;
         private readonly System.Timers.Timer mFindSongEnd;
@@ -23,7 +26,6 @@ namespace Cajonic.ViewModel
         private double mSeconds;
         private static readonly ISongLoader SongLoader = new SongLoader();
         private static SongCollection sSongCollection = new SongCollection(SongLoader);
-        private string mBinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cajonic\\SaveData\\Songs.bin");
 
         public ICommand AddToQueueCommand { get; private set; }
         public ICommand ClearQueueCommand { get; private set; }
@@ -81,6 +83,7 @@ namespace Cajonic.ViewModel
                 });
             };
 
+            DeserializeArtists();
             PlaySong = new CommandHandler(PlaySongAction, () => true);
             PauseSong = new CommandHandler(PauseSongAction, () => true);
             StopSong = new CommandHandler(StopSongAction, () => true);
@@ -88,8 +91,32 @@ namespace Cajonic.ViewModel
             RewindCommand = new CommandHandler(RewindAction, () => true);
         }
 
+        private void DeserializeArtists()
+        {
+            DirectoryInfo directory = new DirectoryInfo(mArtistDirectory);
+            if (!directory.Exists)
+            {
+                return;
+            }
+
+            FileInfo[] files = directory.GetFiles("*.bin");
+            foreach (FileInfo file in files)
+            {
+                Artists.Add(Artist.DeserializeArtistHelperStatic(file.FullName));
+            }
+
+            foreach (Artist artist in Artists)
+            {
+                foreach (Album album in artist.ArtistAlbums)
+                {
+                    SongList.AddUniqueRange(album.AlbumSongCollection);
+                }
+            }
+        }
+
         public string QueueFilePath { get; set; }
         public ObservableCollection<Song> SongList => mCurrentQueue.SongList;
+        public ObservableCollection<Artist> Artists { get; set; } = new ObservableCollection<Artist>();
 
         private string mQueueInfo;
         public string QueueInfo
@@ -179,6 +206,7 @@ namespace Cajonic.ViewModel
             }
         }
 
+
         
         private void AddToQueueAction()
         {
@@ -226,7 +254,16 @@ namespace Cajonic.ViewModel
                 StopSongAction();
                 PlayingSong = SelectedSong;
                 mPlayingIndex = SelectedIndex;
-                ArtistAlbumInfo = PlayingSong.Artist + " - " + PlayingSong.Album + " [" + PlayingSong.Year + "]";
+                if (PlayingSong.Year != null)
+                {
+                    ArtistAlbumInfo = PlayingSong.ArtistName + " - " + PlayingSong.AlbumTitle + " [" +
+                                      PlayingSong.Year.Value + "]";
+                }
+                else
+                {
+                    ArtistAlbumInfo = PlayingSong.ArtistName + " - " + PlayingSong.AlbumTitle;
+                }
+
                 TrackTitleInfo = PlayingSong.TrackNumber + ". " + PlayingSong.Title;
                 mMusicPlayer.Play(new Uri(PlayingSong.FilePath));
                 OnPropertyChanged(nameof(ElapsedTime));
@@ -307,7 +344,7 @@ namespace Cajonic.ViewModel
             {
                 foreach (string filepath in filepaths)
                 {
-                    SongList.AddUniqueRange(SongLoader.Load(filepath));
+                    SongList.AddUniqueRange(SongLoader.Load(filepath, Artists));
                 }
                 OnPropertyChanged(nameof(SongList));
             }

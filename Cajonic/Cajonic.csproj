@@ -6,7 +6,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft-WindowsAPICodePack-Shell" Version="1.1.4" />
-    <PackageReference Include="z440.atl.core" Version="3.19.0" />
+    <PackageReference Include="protobuf-net" Version="3.0.101" />
+    <PackageReference Include="z440.atl.core" Version="3.20.0" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Services\Controls\" />

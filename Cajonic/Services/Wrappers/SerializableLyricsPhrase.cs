@@ -3,14 +3,16 @@ using System.Collections.Generic;
 using System.Linq;
 using ATL;
 using Commons;
+using ProtoBuf;
 
 namespace Cajonic.Services.Wrappers
 {
-    [Serializable]
+    [ProtoContract]
     public class SerializableLyricsPhrase
     {
+        [ProtoMember(1)]
         public int TimestampMs { get; set; }
-
+        [ProtoMember(2)]
         public string Text { get; set; }
 
         public SerializableLyricsPhrase(int timestampMs, string text)

@@ -19,7 +19,7 @@ namespace Cajonic.Model
 
         public void Load(string filepath)
         {
-            ImmutableList<Song> songs = mLoader.Load(filepath);
+            ImmutableList<Song> songs = mLoader.Load(filepath, null);
 
             foreach (Song s in songs)
             {
