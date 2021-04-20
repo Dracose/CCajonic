@@ -2,6 +2,7 @@
 using Cajonic.Services;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cajonic.Model
 {
@@ -9,7 +10,7 @@ namespace Cajonic.Model
     {
         private readonly ISongLoader mLoader;
 
-        public ObservableCollection<Song> SongList { get; }
+        public ObservableCollection<Song> SongList { get; set; }
 
         public SongCollection(ISongLoader songLoader)
         {
@@ -17,15 +18,15 @@ namespace Cajonic.Model
             mLoader = songLoader;
         }
 
-        public void Load(string filepath)
-        {
-            ImmutableList<Song> songs = mLoader.Load(filepath, null);
+        //public void Load(string filepath)
+        //{
+        //    ImmutableList<Song> songs = mLoader.LoadIndiv(filepath, null);
 
-            foreach (Song s in songs)
-            {
-                SongList.Add(s);
-            }
-        }
+        //    foreach (Song s in songs)
+        //    {
+        //        SongList.Add(s);
+        //    }
+        //}
 
         public double TotalSeconds()
         {

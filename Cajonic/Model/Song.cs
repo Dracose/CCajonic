@@ -11,14 +11,14 @@ using ProtoBuf;
 namespace Cajonic.Model
 {
     [ProtoContract]
-    public class Song : IEquatable<Song>
+    public class Song : IEquatable<Song>, IComparable<Song>
     {
         [ProtoMember(1)]
         private string mFilePath;
 
         public byte[] ByteArtwork;
 
-        public Song(Track track, Album album = null, Artist artist = null)
+        public Song(Track track, Album album, Artist artist)
         {
             Title = string.IsNullOrEmpty(track.Title) ? string.Empty : track.Title;
             ArtistName = string.IsNullOrEmpty(track.Artist) ? string.Empty : track.Artist;
@@ -29,42 +29,14 @@ namespace Cajonic.Model
             Year = track.Year == 0 ? null : (int?)track.Year;
             TrackNumber = track.TrackNumber == 0 ? null : (int?)track.TrackNumber;
             Duration = TimeSpan.FromMilliseconds(track.DurationMs);
-            DiscNumber = track.DiscNumber == 0 ? null : (int?) track.DiscNumber;
+            DiscNumber = track.DiscNumber == 0 ? null : (int?)track.DiscNumber;
             FilePath = track.Path;
             Lyrics = track.Lyrics == null ? new SerializableLyricsInfo() : new SerializableLyricsInfo(track.Lyrics);
             Comments = string.Empty;
             //Don't save the artwork.
             ByteArtwork = track.EmbeddedPictures.FirstOrDefault().PictureData;
-
-            if (album != null)
-            {
-                album.AlbumSongCollection.Add(this);
-                Album = album;
-            }
-            else 
-            {
-                Album = new Album(this);
-            }
-
-            if (artist != null)
-            {
-                if (artist.ArtistAlbums.Contains(Album))
-                {
-                    artist.ArtistAlbums.Remove(artist.ArtistAlbums.FirstOrDefault(x => x == Album));
-                    artist.ArtistAlbums.Add(Album);
-                }
-                else
-                {
-                    artist.ArtistAlbums.Add(Album);
-                }
-
-                Artist = artist;
-                artist.SerializeArtistAsync();
-            }
-            else
-            {
-                Artist = new Artist(this);
-            }
+            Album = album;
+            Artist = artist;
         }
 
         public Song()
@@ -105,6 +77,11 @@ namespace Cajonic.Model
         {
             get => string.IsNullOrEmpty(mFilePath) ? string.Empty : mFilePath;
             set => mFilePath = value;
+        }
+
+        public int CompareTo(Song other)
+        {
+            return string.Compare(FilePath, other?.FilePath, StringComparison.Ordinal);
         }
 
         public override int GetHashCode() => FilePath?.GetHashCode() ?? base.GetHashCode();

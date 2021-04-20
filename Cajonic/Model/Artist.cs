@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
+using ATL;
 using Cajonic.Services;
 using ProtoBuf;
 
@@ -38,7 +40,12 @@ namespace Cajonic.Model
             Name = song.ArtistName;
             BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
             ArtistAlbums.Add(song.Album);
-            SerializeArtistAsync();
+        }
+
+        public Artist(Track track)
+        {
+            Name = track.Artist;
+            BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
         }
 
 
@@ -58,7 +65,8 @@ namespace Cajonic.Model
             BinaryFilePath = filePath;
             Name = taskArtist.Result.Name;
             ProfileImage = taskArtist.Result.ProfileImage;
-            if (ProfileImage != null) {
+            if (ProfileImage != null)
+            {
                 mByteProfileImage = BitmapHelper.ConvertToBytes(ProfileImage);
             }
             ArtistAlbums = taskArtist.Result.ArtistAlbums;
@@ -76,6 +84,11 @@ namespace Cajonic.Model
         [ProtoMember(3)]
         public List<Album> ArtistAlbums { get; set; } = new List<Album>();
 
-        public bool Equals([AllowNull] Artist other) => other?.Name == Name;
+        public bool Equals([AllowNull] Artist other) => other?.BinaryFilePath == BinaryFilePath;
+
+        public override int GetHashCode()
+        {
+            return $"{BinaryFilePath}".GetHashCode();
+        }
     }
 }

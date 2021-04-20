@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using Cajonic.Services;
 using Cajonic.Model;
@@ -226,7 +227,8 @@ namespace Cajonic.ViewModel
                 return;
             }
 
-            mCurrentQueue.Load(QueueFilePath);
+            //TODO : this is garbage
+            //mCurrentQueue.Load(QueueFilePath);
 
             if (mCurrentQueue.SongList.Count > 0)
             {
@@ -342,10 +344,22 @@ namespace Cajonic.ViewModel
         {
             try
             {
-                foreach (string filepath in filepaths)
+                if (filepaths.Length > 1)
                 {
-                    SongList.AddUniqueRange(SongLoader.Load(filepath, Artists));
+                    SongList.AddUniqueRange(SongLoader.LoadMultiple(filepaths, Artists.ToList()));
                 }
+
+                FileAttributes fileAttributes = File.GetAttributes(filepaths[0]);
+                switch (filepaths.Length)
+                {
+                    case 1 when fileAttributes.HasFlag(FileAttributes.Directory):
+                        SongList.AddUniqueRange(SongLoader.LoadMultiple(filepaths, Artists.ToList()));
+                        break;
+                    case 1 when !fileAttributes.HasFlag(FileAttributes.Directory):
+                        SongList.AddUnique(SongLoader.LoadIndividualSong(filepaths[0], Artists.ToList()));
+                        break;
+                }
+                
                 OnPropertyChanged(nameof(SongList));
             }
             catch (Exception e)

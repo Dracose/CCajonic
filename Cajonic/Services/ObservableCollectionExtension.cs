@@ -16,5 +16,13 @@ namespace Cajonic.Services
                 }
             }
         }
+
+        public static void AddUnique<T>(this ObservableCollection<T> list, T toAdd)
+        {
+            if (!list.Contains(toAdd))
+            {
+                list.Add(toAdd);
+            }
+        }
     }
 }
