@@ -56,16 +56,17 @@ namespace Cajonic.Services
 
                     foreach (Artist concurrentArtist in concurrentArtists)
                     {
-                        List<Album> artistAlbums = concurrentArtist.ArtistAlbums.ToList();
+                        ConcurrentBag<Album> artistAlbums = 
+                            new ConcurrentBag<Album>(concurrentArtist.ArtistAlbums.ToImmutableList());
                         ConcurrentBag<Album> concurrentArtistAlbums = new ConcurrentBag<Album>(artistAlbums);
                         songs.Add(CuratedSong(concurrentArtist, track, concurrentArtistAlbums));
                     }
+
+                    modifiedArtists.AddRange(MergeSongs(songs));
+
+                    artists.ReplaceRangeArtists(MergeArtists(modifiedArtists).ToImmutableList());
                 });
             }
-
-            //TODO : FIX MERGE SONGS. DOESN'T ACCEPT 2 ALBUMS OF THE SAME ARTIST AT THE SAME TIME
-            modifiedArtists.AddRange(MergeSongs(songs));
-            artists = MergeArtists(modifiedArtists).ToImmutableList();
 
             foreach (Artist artist in artists)
             {
@@ -98,7 +99,6 @@ namespace Cajonic.Services
         private static IEnumerable<Artist> MergeSongs(IEnumerable<Song> songs)
         {
             List<Artist> artists = new List<Artist>();
-            List<Album> albums = new List<Album>();
 
             List<Song> songList = songs.ToList();
             foreach (Song song in songList)
@@ -106,12 +106,10 @@ namespace Cajonic.Services
                 artists.AddUnique(song.Artist);
             }
 
-            foreach (Album album in artists.SelectMany(song => song.ArtistAlbums))
-            {
-                albums.AddUnique(album);
-            }
+            List<Album> albumsEnumerator = songList.Select(x => x.Album).DistinctBy(x => x.Title)
+                .Where(x => !string.IsNullOrEmpty(x.ArtistName) && !string.IsNullOrEmpty(x.Title)).ToList();
 
-            foreach (Album album in albums)
+            foreach (Album album in albumsEnumerator)
             {
                 album.AlbumSongCollection = songList
                     .Where(x => x.AlbumTitle == album.Title && x.ArtistName == album.ArtistName).ToList();
@@ -119,26 +117,28 @@ namespace Cajonic.Services
 
             foreach (Artist artist in artists)
             {
-                List<Album> albumsInArtist = new List<Album>();
-                foreach (Album album in artist.ArtistAlbums)
+                artist.ArtistAlbums.Clear();
+                ConcurrentBag<Album> albumsInArtist = new ConcurrentBag<Album>();
+                foreach (Album album in albumsEnumerator.Where(album => album.ArtistName == artist.Name))
                 {
-                    if (!albums.Select(x => x.ArtistName).Contains(album.ArtistName))
+                    artist.ArtistAlbums.Add(album);
+                }
+
+                ImmutableList<Album> artistAlbums = artist.ArtistAlbums.ToImmutableList();
+
+                foreach (Album album in artistAlbums)
+                {
+                    if (!albumsEnumerator.Select(x => x.ArtistName).Contains(album.ArtistName))
                     {
                         albumsInArtist.Add(album);
                     }
 
-                    albumsInArtist.AddUnique(albums.FirstOrDefault(x => x.Title == album.Title));
+                    albumsInArtist.AddUnique(albumsEnumerator.FirstOrDefault(x => x.Title == album.Title));
                 }
 
                 artist.ArtistAlbums = albumsInArtist;
             }
 
-            foreach (Song song in songList)
-            {
-                song.Album = albums.FirstOrDefault(x => x.Title == song.AlbumTitle && song.ArtistName == x.ArtistName);
-                song.Artist = artists.FirstOrDefault(x => x.Name == song.ArtistName);
-            }
-            
             return artists;
         }
 
@@ -149,6 +149,8 @@ namespace Cajonic.Services
             List<Album> mergedAlbums = new List<Album>();
             List<Artist> mergedArtists = new List<Artist>();
 
+            //case where Artist has one or more albums
+
             foreach (Artist artist in artists)
             {
                 albums.AddRange(artist.ArtistAlbums);
@@ -156,7 +158,9 @@ namespace Cajonic.Services
 
             mergedAlbums.AddRange(albums);
 
-            foreach (Album album in mergedAlbums.DistinctBy(x => x.Title))
+            List<Album> distinctAlbums = mergedAlbums.DistinctBy(x => x?.Title).ToList();
+
+            foreach (Album album in distinctAlbums)
             {
                 album.AlbumSongCollection = albums
                     .SelectMany(z => z.AlbumSongCollection)
@@ -174,7 +178,7 @@ namespace Cajonic.Services
                     Album relevantAlbum = relevantArtist.ArtistAlbums.FirstOrDefault(x => x.Title == album.Title);
                     if (relevantAlbum != null)
                     {
-                        relevantArtist.ArtistAlbums.Remove(relevantAlbum);
+                        //relevantArtist.ArtistAlbums.Remove(relevantAlbum);
                     }
                     relevantArtist.ArtistAlbums.Add(album);
                     song.Artist = relevantArtist;

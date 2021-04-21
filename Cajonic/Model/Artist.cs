@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics.CodeAnalysis;
@@ -82,7 +83,7 @@ namespace Cajonic.Model
         [ProtoMember(2)]
         public string Name { get; set; }
         [ProtoMember(3)]
-        public List<Album> ArtistAlbums { get; set; } = new List<Album>();
+        public ConcurrentBag<Album> ArtistAlbums { get; set; } = new ConcurrentBag<Album>();
 
         public bool Equals([AllowNull] Artist other) => other?.BinaryFilePath == BinaryFilePath;
 
