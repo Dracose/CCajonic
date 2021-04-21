@@ -40,7 +40,7 @@ namespace Cajonic.Model
         {
             Name = song.ArtistName;
             BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
-            ArtistAlbums.Add(song.Album);
+            ArtistAlbums.TryAdd(ArtistAlbums.Count, song.Album);
         }
 
         public Artist(Track track)
@@ -52,6 +52,7 @@ namespace Cajonic.Model
 
         public async void SerializeArtistAsync()
         {
+            IsSerialization = false;
             await SerializationHelper.WriteToBinaryFile(BinaryFilePath, this);
         }
 
@@ -83,7 +84,9 @@ namespace Cajonic.Model
         [ProtoMember(2)]
         public string Name { get; set; }
         [ProtoMember(3)]
-        public ConcurrentBag<Album> ArtistAlbums { get; set; } = new ConcurrentBag<Album>();
+        public ConcurrentDictionary<int, Album> ArtistAlbums { get; set; } = new ConcurrentDictionary<int, Album>();
+
+        public bool IsSerialization { get; set; }
 
         public bool Equals([AllowNull] Artist other) => other?.BinaryFilePath == BinaryFilePath;
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -29,7 +30,10 @@ namespace Cajonic.Model
             Title = song.AlbumTitle;
             ArtistName = song.ArtistName;
             mByteArtwork = song.ByteArtwork;
-            AlbumSongCollection.Add(song);
+            if (song.TrackNumber != null)
+            {
+                AlbumSongCollection.TryAdd(song.TrackNumber.Value, song);
+            }
         }
 
         public Album(Track track)
@@ -43,7 +47,7 @@ namespace Cajonic.Model
         [ProtoMember(3)]
         public string ArtistName { get; set; }
         [ProtoMember(4)]
-        public List<Song> AlbumSongCollection { get; set; } = new List<Song>();
+        public ConcurrentDictionary<int, Song> AlbumSongCollection { get; set; } = new ConcurrentDictionary<int, Song>();
 
         public int CompareTo(Album other)
         {
@@ -64,11 +68,12 @@ namespace Cajonic.Model
                 return result;
             }
 
-            result += AlbumSongCollection.Sum(thisAlbums => other.AlbumSongCollection.Sum(thisAlbums.CompareTo));
+            result += AlbumSongCollection.Sum(thisAlbums => other.AlbumSongCollection.Select(x => x.Value.FilePath).ToList().Sum(thisAlbums.Value.FilePath.CompareTo));
 
             return result;
         }
 
-        public bool Equals(Album other) => other?.Title == Title && other?.ArtistName == ArtistName;
+        public bool Equals(Album other) => other != null && other.Title == Title && other.ArtistName == ArtistName && 
+                                           other.AlbumSongCollection.Select(x => x.Value.FilePath).ToList() == (AlbumSongCollection.Select(x => x.Value.FilePath)).ToList();
     }
 }

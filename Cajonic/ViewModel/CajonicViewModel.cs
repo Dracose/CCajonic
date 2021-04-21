@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Windows.Controls;
 
 namespace Cajonic.ViewModel
@@ -108,9 +109,9 @@ namespace Cajonic.ViewModel
 
             foreach (Artist artist in Artists)
             {
-                foreach (Album album in artist.ArtistAlbums)
+                foreach (Album album in artist.ArtistAlbums.Values.ToList())
                 {
-                    SongList.AddUniqueRange(album.AlbumSongCollection);
+                    SongList.AddUniqueRange(album.AlbumSongCollection.Values);
                 }
             }
         }
@@ -344,27 +345,20 @@ namespace Cajonic.ViewModel
         {
             try
             {
-                if (filepaths.Length > 1)
-                {
-                    SongList.AddUniqueRange(SongLoader.LoadMultiple(filepaths, Artists.ToList()));
-                }
+                SongList.AddUniqueRange(SongLoader.LoadSongs(filepaths, Artists));
 
-                FileAttributes fileAttributes = File.GetAttributes(filepaths[0]);
-                switch (filepaths.Length)
-                {
-                    case 1 when fileAttributes.HasFlag(FileAttributes.Directory):
-                        SongList.AddUniqueRange(SongLoader.LoadMultiple(filepaths, Artists.ToList()));
-                        break;
-                    case 1 when !fileAttributes.HasFlag(FileAttributes.Directory):
-                        SongList.AddUnique(SongLoader.LoadIndividualSong(filepaths[0], Artists.ToList()));
-                        break;
-                }
-                
                 OnPropertyChanged(nameof(SongList));
             }
             catch (Exception e)
             {
-                DialogResult _ = MessageBox.Show(e.Message, "Error adding song", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (e.Message == "The key already existed in the dictionary.")
+                {
+                    DialogResult _ = MessageBox.Show("This song already exists", "Duplicate song", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    DialogResult _ = MessageBox.Show(e.Message, "Error adding song", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
         }
 

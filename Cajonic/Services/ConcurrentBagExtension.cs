@@ -13,7 +13,10 @@ namespace Cajonic.Services
         {
             foreach (T element in toAdd)
             {
-                bag.Add(element);
+                if (toAdd != null)
+                {
+                    bag.Add(element);
+                }
             }
         }
 
@@ -26,7 +29,15 @@ namespace Cajonic.Services
                  .ToList());
         }
 
-        public static void AddUnique<T>(this ConcurrentBag<T> bag, T toAdd)
+        public static void AddUnique<T>(this ConcurrentDictionary<int, T> dictionary, T toAdd)
+        {
+            if (!dictionary.Select(x => x.Value).Contains(toAdd))
+            {
+                dictionary.TryAdd(dictionary.Count, toAdd);
+            }
+        }
+
+        public static void AddUniqueArtist(this ConcurrentBag<Artist> bag, Artist toAdd)
         {
             if (!bag.Contains(toAdd))
             {

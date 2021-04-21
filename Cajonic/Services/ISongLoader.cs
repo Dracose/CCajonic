@@ -7,8 +7,6 @@ namespace Cajonic.Services
 {
     public interface ISongLoader
     {
-        ImmutableList<Song> LoadMultiple(string[] path, ICollection<Artist> artists);
-
-        Song LoadIndividualSong(string path, IEnumerable<Artist> artists);
+        ImmutableList<Song> LoadSongs(string[] path, ICollection<Artist> artists);
     }
 }
