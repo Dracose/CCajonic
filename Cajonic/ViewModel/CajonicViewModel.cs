@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.ComponentModel;
 using Cajonic.Services;
@@ -8,10 +9,14 @@ using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Windows.Forms;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
+using ATL;
+using Meziantou.Framework.WPF.Collections;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace Cajonic.ViewModel
 {
@@ -28,6 +33,7 @@ namespace Cajonic.ViewModel
         private double mSeconds;
         private static readonly ISongLoader SongLoader = new SongLoader();
         private static SongCollection sSongCollection = new SongCollection(SongLoader);
+        private string mBasicElapsedTime = "00:00 / " + "00:00";
 
         public ICommand AddToQueueCommand { get; private set; }
         public ICommand ClearQueueCommand { get; private set; }
@@ -117,7 +123,9 @@ namespace Cajonic.ViewModel
         }
 
         public string QueueFilePath { get; set; }
-        public ObservableCollection<Song> SongList => mCurrentQueue.SongList;
+
+        public ConcurrentObservableCollection<Song> SongList => mCurrentQueue.SongList;
+
         public ObservableCollection<Artist> Artists { get; set; } = new ObservableCollection<Artist>();
 
         private string mQueueInfo;
@@ -159,6 +167,9 @@ namespace Cajonic.ViewModel
             get => mSelectedSong;
             set
             {
+                if (mSelectedSong != null) {
+                    mSelectedSong.ByteArtwork = null;
+                }
                 mSelectedSong = value;
                 OnPropertyChanged(nameof(SelectedSong));
             }
@@ -200,7 +211,7 @@ namespace Cajonic.ViewModel
         private string mElapsedTime;
         public string ElapsedTime
         {
-            get => PlayingSong != null ? mElapsedTime : "00:00 / " + "00:00";
+            get => PlayingSong != null ? mElapsedTime : mBasicElapsedTime;
             set
             {
                 mElapsedTime = value;
@@ -209,17 +220,17 @@ namespace Cajonic.ViewModel
         }
 
 
-        
+
         private void AddToQueueAction()
         {
-            OpenFileDialog fileDialog = new OpenFileDialog
+            CommonOpenFileDialog fileDialog = new CommonOpenFileDialog
             {
-                ValidateNames = false,
-                CheckFileExists = false,
-                CheckPathExists = true,
+                EnsureValidNames = false,
+                EnsureFileExists = false,
+                EnsurePathExists = true
             };
 
-            if (fileDialog.ShowDialog() == DialogResult.OK)
+            if (fileDialog.ShowDialog() == CommonFileDialogResult.Ok)
             {
                 QueueFilePath = fileDialog.FileName;
             }
@@ -255,25 +266,37 @@ namespace Cajonic.ViewModel
             if (PlayingSong?.FilePath != SelectedSong?.FilePath)
             {
                 StopSongAction();
+                Track track = new Track(SelectedSong.FilePath);
+                SelectedSong.ByteArtwork = BitmapHelper.LoadImage(track.EmbeddedPictures[0].PictureData);
+                track = null;
+
                 PlayingSong = SelectedSong;
                 mPlayingIndex = SelectedIndex;
                 if (PlayingSong.Year != null)
                 {
-                    ArtistAlbumInfo = PlayingSong.ArtistName + " - " + PlayingSong.AlbumTitle + " [" +
+                    ArtistAlbumInfo = PlayingSong.Artist.Name + " - " + PlayingSong.Album.Title + " [" +
                                       PlayingSong.Year.Value + "]";
                 }
                 else
                 {
-                    ArtistAlbumInfo = PlayingSong.ArtistName + " - " + PlayingSong.AlbumTitle;
+                    ArtistAlbumInfo = PlayingSong.Artist.Name + " - " + PlayingSong.Album.Title;
                 }
 
                 TrackTitleInfo = PlayingSong.TrackNumber + ". " + PlayingSong.Title;
                 mMusicPlayer.Play(new Uri(PlayingSong.FilePath));
                 OnPropertyChanged(nameof(ElapsedTime));
+                OnPropertyChanged(nameof(PlayingSong));
             }
             else
             {
-                mPlayer.Play();
+                if (!mMusicPlayer.IsDone())
+                {
+                    PauseSongAction();
+                }
+                else
+                {
+                    mPlayer.Play();
+                }
             }
             StartTimers();
         }
@@ -287,10 +310,12 @@ namespace Cajonic.ViewModel
         private void StopSongAction()
         {
             mPlayer.Stop();
+            PlayingSong.ByteArtwork = null;
+            PlayingSong = null;
             StopTimers();
             PlayingProgress = 0;
             mSeconds = 0;
-            PlayingSong = null;
+            OnPropertyChanged(nameof(PlayingSong));
             OnPropertyChanged(nameof(ElapsedTime));
         }
 
@@ -345,19 +370,28 @@ namespace Cajonic.ViewModel
         {
             try
             {
-                SongList.AddUniqueRange(SongLoader.LoadSongs(filepaths, Artists));
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        SongList.AddUniqueRange(SongLoader.LoadSongs(filepaths, Artists));
+                    }
+                    catch (Exception e)
+                    {
+                        MessageBoxResult _ = MessageBox.Show(e.Message, "Error adding song", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                });
 
-                OnPropertyChanged(nameof(SongList));
             }
             catch (Exception e)
             {
                 if (e.Message == "The key already existed in the dictionary.")
                 {
-                    DialogResult _ = MessageBox.Show("This song already exists", "Duplicate song", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBoxResult _ = MessageBox.Show("This song already exists", "Duplicate song", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 else
                 {
-                    DialogResult _ = MessageBox.Show(e.Message, "Error adding song", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBoxResult _ = MessageBox.Show(e.Message, "Error adding song", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
         }

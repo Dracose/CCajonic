@@ -19,7 +19,5 @@ namespace Cajonic.Services
             await using Stream stream = File.Open(filePath, FileMode.Open);
             return (T)Serializer.Deserialize<T>(stream);
         }
-
-        //Special serializer for Song which also makes it so the artwork is good to go from byte array
     }
 }

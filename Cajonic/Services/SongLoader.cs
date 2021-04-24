@@ -5,9 +5,9 @@ using System.Collections.Immutable;
 using System.IO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using MoreLinq;
 
 namespace Cajonic.Services
 {
@@ -15,13 +15,10 @@ namespace Cajonic.Services
     {
         public ImmutableList<Song> LoadSongs(string[] paths, ICollection<Artist> artists)
         {
-            //Check subfolders
-            ConcurrentSet<Song> songs = new ConcurrentSet<Song>();
-            ConcurrentBag<Artist> concurrentArtists = new ConcurrentBag<Artist>();
             ConcurrentBag<Artist> modifiedArtists = new ConcurrentBag<Artist>(artists);
-            ConcurrentBag<Artist> mergedSongs = new ConcurrentBag<Artist>();
-            ConcurrentBag<Artist> mergedSongBag = new ConcurrentBag<Artist>();
             ConcurrentBag<Artist> originalArtistBag = new ConcurrentBag<Artist>(artists);
+            ConcurrentDictionary<string, Artist> concurrentArtistsDictionary =
+                new ConcurrentDictionary<string, Artist>();
 
             foreach (string path in paths)
             {
@@ -52,194 +49,167 @@ namespace Cajonic.Services
 
                     Track track = new Track(file.FullName);
 
-                    Artist artist = new Artist(track);
-                    concurrentArtists.Add(artist);
-                    if (concurrentArtists.Count > 1)
+                    if (!concurrentArtistsDictionary.ContainsKey(track.Artist))
                     {
-                        concurrentArtists = concurrentArtists.ArtistMerge();
+                        concurrentArtistsDictionary.TryAdd(track.Artist, new Artist(track));
+                    }
+                    else
+                    {
+                        if (track.DiscTotal != 0 && track.DiscTotal != 1)
+                        {
+                            concurrentArtistsDictionary[track.Artist].ArtistAlbums[track.Album].CDs
+                                .TryAdd(track.DiscNumber, new Album(track));
+                        }
+                        else
+                        {
+                            concurrentArtistsDictionary[track.Artist].ArtistAlbums
+                                .TryAdd(track.Album, new Album(track));
+                        }
                     }
 
-                    foreach (Artist concurrentArtist in concurrentArtists)
+                    foreach (Artist concurrentArtist in concurrentArtistsDictionary.Values)
                     {
-                        ConcurrentBag<Album> artistAlbums =
-                            new ConcurrentBag<Album>(concurrentArtist.ArtistAlbums.Select(x => x.Value).ToImmutableList());
-                        ConcurrentBag<Album> concurrentArtistAlbums = new ConcurrentBag<Album>(artistAlbums);
-                        songs.Add(CuratedSong(concurrentArtist, track, concurrentArtistAlbums));
+                        AddSongs(concurrentArtist, track, concurrentArtist.ArtistAlbums.Values);
                     }
-                    mergedSongs = MergeSongs(songs);
                 });
             }
 
-            
-            modifiedArtists.AddRange(mergedSongs);
-            ImmutableList<Artist> mergedArtists = MergeArtists(modifiedArtists, originalArtistBag).ToImmutableList();
-            artists.ReplaceRangeArtists(mergedArtists);
+            modifiedArtists.AddRange(concurrentArtistsDictionary.Values);
+            modifiedArtists = new ConcurrentBag<Artist>(MergeArtists(modifiedArtists, originalArtistBag));
+            artists.ReplaceRangeArtists(modifiedArtists);
 
-            ImmutableList<Artist> artistsToSerialize = artists.Where(x => x.IsSerialization).ToImmutableList();
+            ImmutableList<Artist> artistsToSerialize = modifiedArtists.Where(x => x.IsSerialization).ToImmutableList();
 
             foreach (Artist artist in artistsToSerialize)
             {
                 artist.SerializeArtistAsync();
             }
 
-            return songs.OrderBy(x => x.TrackNumber).ToImmutableList();
+            return artists.SelectMany(x => x.ArtistAlbums.Values).OrderBy(x => x.Title)
+                .SelectMany(x => x.AlbumSongCollection.Values).OrderBy(x => x.TrackNumber)
+                .Concat(artists.SelectMany(x => x.ArtistAlbums.Values).OrderBy(x => x.Title)
+                    .SelectMany(x=> x.CDs.Values).SelectMany(x => x.AlbumSongCollection.Values)).ToImmutableList();
         }
 
-        private static Song CuratedSong(Artist artist, Track track, ConcurrentBag<Album> artistAlbums)
+        private static void AddSongs(Artist artist, Track track, ICollection<Album> artistAlbums)
         {
-            if (artistAlbums.Select(x => x.Title).Contains(track.Album) &&
-                artistAlbums.Select(x => x.ArtistName).Contains(track.Artist))
+            foreach (Album album in artistAlbums)
             {
-                Album albumExists = artist.ArtistAlbums.FirstOrDefault(x => x.Value.Title == track.Album).Value;
-                Song songAlbumExists = new Song(track, albumExists, artist);
-
-                return songAlbumExists;
-            }
-
-            Album albumNotExists = new Album(track);
-
-            artist.ArtistAlbums.TryAdd(artist.ArtistAlbums.Count, albumNotExists);
-            Song songAlbumNotExists = new Song(track, albumNotExists, artist);
-            albumNotExists.AlbumSongCollection.TryAdd(songAlbumNotExists.TrackNumber ?? albumNotExists.AlbumSongCollection.Count, songAlbumNotExists);
-
-            return songAlbumNotExists;
-        }
-
-        private static ConcurrentBag<Artist> MergeSongs(ConcurrentSet<Song> songs)
-        {
-            ConcurrentBag<Artist> artists = new ConcurrentBag<Artist>();
-
-            foreach (Song song in songs)
-            {
-                artists.AddUniqueArtist(song.Artist);
-            }
-
-            ConcurrentBag<Album> albumsEnumerator = new ConcurrentBag<Album>(songs.Select(x => x.Album).DistinctBy(x => x.Title)
-                .Where(x => !string.IsNullOrEmpty(x.ArtistName) && !string.IsNullOrEmpty(x.Title)).ToList());
-
-            foreach (Album album in albumsEnumerator)
-            {
-                album.AlbumSongCollection.Clear();
-                foreach (Song concurrentSong in songs.Where(x => x.AlbumTitle == album.Title && x.ArtistName == album.ArtistName))
+                if (artist.Name != track.Artist && album.Title != track.Album)
                 {
-                    album.AlbumSongCollection.TryAdd(concurrentSong.TrackNumber ?? album.AlbumSongCollection.Count,
-                        concurrentSong);
-                }
-            }
-
-            foreach (Artist artist in artists)
-            {
-                artist.ArtistAlbums.Clear();
-                ConcurrentDictionary<int, Album> albumsInArtist = new ConcurrentDictionary<int, Album>();
-                foreach (Album album in albumsEnumerator.Where(album => album.ArtistName == artist.Name))
-                {
-                    artist.ArtistAlbums.TryAdd(artist.ArtistAlbums.Count, album);
-                }
-
-                ConcurrentBag<Album> artistAlbums =
-                    new ConcurrentBag<Album>(artist.ArtistAlbums.Select(x => x.Value).ToImmutableList());
-
-                foreach (Album album in artistAlbums)
-                {
-                    if (!albumsEnumerator.Select(x => x.ArtistName).Contains(album.ArtistName))
-                    {
-                        albumsInArtist.TryAdd(albumsInArtist.Count, album);
-                    }
-
-                    albumsInArtist.AddUnique(albumsEnumerator.FirstOrDefault(x => x.Title == album.Title));
-                }
-
-                artist.ArtistAlbums = albumsInArtist;
-            }
-
-            return artists;
-        }
-
-        private static IEnumerable<Artist> MergeArtists(ConcurrentBag<Artist> modifiedArtists, ConcurrentBag<Artist> artists)
-        {
-            ConcurrentBag<Artist> mergedArtists = new ConcurrentBag<Artist>();
-
-            //No overlap first
-
-            foreach (Artist modArtist in modifiedArtists)
-            {
-                if (!File.Exists(modArtist.BinaryFilePath))
-                {
-                    modArtist.IsSerialization = true;
-                    mergedArtists.Add(modArtist);
                     continue;
                 }
 
-                // small foreach loop here for the no overlap
-
-                foreach (Artist artist in artists)
+                if (track.DiscTotal == 1 || track.DiscTotal == 0)
                 {
-                    if (modArtist.BinaryFilePath != artist.BinaryFilePath)
+                    Song newSong = new Song(track);
+                    album.AlbumSongCollection.TryAdd(newSong.TrackNumber ?? album.AlbumSongCollection.Count, newSong);
+                    newSong.Artist = artist;
+                    newSong.Album = album;
+                }
+
+                else
+                {
+                    Song newSong = new Song(track);
+                    album.CDs[track.DiscNumber].AlbumSongCollection.TryAdd(newSong.TrackNumber ?? album.AlbumSongCollection.Count, newSong);
+                    newSong.Artist = artist;
+                    newSong.Album = album;
+                }
+            }
+        }
+
+        private static ConcurrentSet<Artist> MergeArtists(ConcurrentBag<Artist> modifiedArtists, ConcurrentBag<Artist> artists)
+        {
+            ConcurrentSet<Artist> mergedArtists = new ConcurrentSet<Artist>();
+            foreach (Artist modArtist in modifiedArtists.Where(x => x.IsToModify))
+            {
+                Artist artistToReturn = modArtist;
+                if (!File.Exists(artistToReturn.BinaryFilePath))
+                {
+                    artistToReturn.IsSerialization = true;
+                    mergedArtists.Add(artistToReturn);
+                    continue;
+                }
+
+                Artist existingArtist = artists.FirstOrDefault(x => x.Name == artistToReturn.Name);
+                ConcurrentBag<string> existingArtistKeyList = new ConcurrentBag<string>(existingArtist.ArtistAlbums.Keys.ToList());
+
+                foreach (string albumKey in existingArtistKeyList)
+                {
+                    if (artistToReturn.ArtistAlbums.ContainsKey(albumKey)) 
                     {
-                        continue;
+                        ConcurrentBag<Song> oldSongs = new ConcurrentBag<Song>(existingArtist
+                            .ArtistAlbums
+                            .Where(x => x.Key == albumKey)
+                            .SelectMany(x => x.Value.AlbumSongCollection.Values)
+                            .Concat(existingArtist.ArtistAlbums.Where(x => x.Key == albumKey)
+                                .SelectMany(x => x.Value.CDs)
+                                .SelectMany(x => x.Value.AlbumSongCollection.Values))
+                            .ToList());
+
+                        ConcurrentBag<Song> newSongs = new ConcurrentBag<Song>(modArtist
+                            .ArtistAlbums
+                            .Where(x => x.Key == albumKey)
+                            .SelectMany(x => x.Value.AlbumSongCollection.Values)
+                            .Concat(modArtist.ArtistAlbums.Where(x => x.Key == albumKey)
+                                .SelectMany(x => x.Value.CDs)
+                                .SelectMany(x => x.Value.AlbumSongCollection.Values))
+                            .ToList());
+
+                        if (oldSongs.Count > newSongs.Count)
+                        {
+                            Artist tempValue = existingArtist;
+                            artistToReturn = tempValue;
+                            existingArtist = modArtist;
+                        }
                     }
 
-                    foreach (Album modAlbum in modArtist.ArtistAlbums.Values)
+                    ConcurrentBag<Song> songsToPointBack = new ConcurrentBag<Song>(existingArtist
+                        .ArtistAlbums
+                        .Where(x => x.Key == albumKey)
+                        .SelectMany(x => x.Value.AlbumSongCollection.Values)
+                        .Concat(existingArtist.ArtistAlbums.Where(x => x.Key == albumKey)
+                            .SelectMany(x => x.Value.CDs)
+                            .SelectMany(x => x.Value.AlbumSongCollection.Values))
+                        .ToList());
+
+                    if (!artistToReturn.ArtistAlbums.ContainsKey(albumKey))
                     {
-                        if (artist.ArtistAlbums.Values.Select(x => x.Title).Contains(modAlbum.Title))
+                        artistToReturn.ArtistAlbums.TryAdd(albumKey, existingArtist.ArtistAlbums[albumKey]);
+                        foreach (Album cd in existingArtist.ArtistAlbums[albumKey].CDs.Values)
                         {
-                            List<string> filePaths = artist.ArtistAlbums.Where(x => x.Value.Title == modAlbum.Title)
-                                .SelectMany(z => z.Value.AlbumSongCollection).Select(x => x.Value.FilePath).ToList();
+                            artistToReturn.ArtistAlbums[albumKey].CDs
+                                .TryAdd(cd.AlbumSongCollection.FirstOrDefault().Value.DiscNumber ?? 
+                                        artistToReturn.ArtistAlbums[albumKey].CDs.Count, cd);
+                        }
+                    }
 
-                            List<string> otherFilePaths = modAlbum.AlbumSongCollection.Where(x => artist.ArtistAlbums.Values.Select(x => x.Title)
-                            .Contains(modAlbum.Title)).Select(x => x.Value.FilePath).ToList();
-
-                            if (!filePaths.Except(otherFilePaths).Any())
+                    foreach (Song song in songsToPointBack)
+                    {
+                        if (song.DiscNumber != null)
+                        {
+                            if (!artistToReturn.ArtistAlbums[albumKey].CDs.ContainsKey(song.DiscNumber.Value))
                             {
-                                continue;
+                                artistToReturn.ArtistAlbums[albumKey].CDs
+                                    .TryAdd(song.DiscNumber.Value, new Album(song));
                             }
+                            int collectionCount = song.Album.AlbumSongCollection.Count;
+                            artistToReturn.ArtistAlbums[albumKey].CDs.FirstOrDefault(x => x.Key == song.DiscNumber.Value).Value
+                                .AlbumSongCollection.TryAdd(song.TrackNumber ?? collectionCount, song);
+                            song.Album = artistToReturn.ArtistAlbums[albumKey];
+                            song.Artist = artistToReturn;
                         }
-
-                        string titleToCompare = artist.ArtistAlbums.Values.FirstOrDefault(x => x.Title == modAlbum.Title)?.Title;
-
-                        if (titleToCompare != modAlbum.Title)
+                        else
                         {
-                            continue;
+                            int collectionCount = song.Album.AlbumSongCollection.Count;
+                            artistToReturn.ArtistAlbums[albumKey].AlbumSongCollection.TryAdd(song.TrackNumber ?? collectionCount, song);
+                            song.Album = artistToReturn.ArtistAlbums[albumKey];
+                            song.Artist = artistToReturn;
                         }
-
-                        modAlbum.AlbumSongCollection.AddRange(
-                            artist.ArtistAlbums.Values.SelectMany(x => x.AlbumSongCollection));
-                        modAlbum.AlbumSongCollection.ForEach(x => x.Value.Artist = modArtist);
-                        modAlbum.AlbumSongCollection.ForEach(x => x.Value.Album = modAlbum);
-
-                        modArtist.IsSerialization = true;
-                        mergedArtists.Add(modArtist);
                     }
                 }
-
-
-                List<Artist> relevantArtists = modifiedArtists.Where(x => x.BinaryFilePath == modArtist.BinaryFilePath).ToList();
-                List<Artist> artistsToMerge =
-                    relevantArtists.Where(x => x.ArtistAlbums != modArtist.ArtistAlbums).ToList();
-
-                foreach (Artist artist in artistsToMerge)
-                {
-                    if (artist.ArtistAlbums.Values.Select(x => x.Title)
-                        .Contains(artist.ArtistAlbums.SelectMany(x => x.Value.ArtistName)))
-                    {
-                        continue;
-                    }
-
-
-                    foreach (Album album in artist.ArtistAlbums.Values.Where(x => x.ArtistName == artist.Name))
-                    //album doesn't exist in one or the other
-                    {
-                        string titleToCompare = modArtist.ArtistAlbums.Values.FirstOrDefault(x => x.ArtistName == album.ArtistName)?.Title;
-                        if (titleToCompare == album.Title)
-                        {
-                            continue;
-                        }
-
-                        modArtist.ArtistAlbums.TryAdd(modArtist.ArtistAlbums.Count, album);
-                        modArtist.IsSerialization = true;
-                    }
-                }
-                mergedArtists.AddUniqueArtist(modArtist);
+                artistToReturn.IsSerialization = true;
+                mergedArtists.TryAdd(artistToReturn);
             }
 
             return mergedArtists;
@@ -249,14 +219,19 @@ namespace Cajonic.Services
         {
             // TODO : Check which extensions to add.
             string pathExtension = Path.GetExtension(path);
-            return pathExtension switch
+            return pathExtension.ToLowerInvariant() switch
             {
                 ".mp3" => true,
+                ".caf" => true,
+                ".aax" => true,
+                ".aa" => true,
                 ".flac" => true,
                 ".wav" => true,
                 ".m4a" => true,
                 ".pcm" => true,
                 ".aiff" => true,
+                ".aif" => true,
+                ".aifc" => true,
                 ".aac" => true,
                 ".wma" => true,
                 _ => false,

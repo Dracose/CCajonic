@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Input;
+using Cajonic.Model;
 using Cajonic.Services;
 using Cajonic.ViewModel;
 
@@ -15,7 +16,8 @@ namespace Cajonic.View
         {
             InitializeComponent();
         }
-        public void ListViewItem_MouseDoubleClick(object sender, System.Windows.Input.MouseEventArgs e)
+
+        public void ListViewItem_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             (DataContext as CajonicViewModel)?.PlaySong.Execute(null);
         }

@@ -16,9 +16,15 @@ namespace Cajonic.Model
         [ProtoMember(1)]
         private string mFilePath;
 
-        public byte[] ByteArtwork;
+        private BitmapImage mByteArtwork;
 
-        public Song(Track track, Album album, Artist artist)
+        public BitmapImage ByteArtwork
+        {
+            get => mByteArtwork;
+            set => mByteArtwork = value;
+        }
+
+        public Song(Track track)
         {
             Title = string.IsNullOrEmpty(track.Title) ? string.Empty : track.Title;
             ArtistName = string.IsNullOrEmpty(track.Artist) ? string.Empty : track.Artist;
@@ -31,12 +37,9 @@ namespace Cajonic.Model
             Duration = TimeSpan.FromMilliseconds(track.DurationMs);
             DiscNumber = track.DiscNumber == 0 ? null : (int?)track.DiscNumber;
             FilePath = track.Path;
-            Lyrics = track.Lyrics == null ? new SerializableLyricsInfo() : new SerializableLyricsInfo(track.Lyrics);
             Comments = string.Empty;
-            //Don't save the artwork.
-            ByteArtwork = track.EmbeddedPictures.FirstOrDefault().PictureData;
-            Album = album;
-            Artist = artist;
+            //This is very costly !
+            //ByteArtwork = BitmapHelper.LoadImage(track.EmbeddedPictures.FirstOrDefault()?.PictureData);
         }
 
         public Song()
@@ -67,8 +70,6 @@ namespace Cajonic.Model
         public int? PlayCount { get; set; }
         [ProtoMember(15)]
         public string Comments { get; set; }
-        [ProtoMember(16)]
-        public SerializableLyricsInfo Lyrics { get; set; }
         [ProtoMember(17)]
         public TimeSpan Duration { get; set; }
         public string DisplayDuration => Duration.Days != 0 ? Duration.ToString("dd\\:hh\\:mm\\:ss") : Duration.ToString(Duration.Hours != 0 ? "hh\\:mm\\:ss" : "mm\\:ss");

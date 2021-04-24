@@ -24,23 +24,13 @@ namespace Cajonic.Services
             return list;
         }
 
-        public static ICollection<T> AddRange<T>(this ICollection<T> list, IEnumerable<T> toAdd)
-        {
-            foreach (T element in toAdd)
-            {
-                list.Add(element);
-            }
-
-            return list;
-        }
-
         public static ICollection<Artist> ReplaceRangeArtists(this ICollection<Artist> list, IEnumerable<Artist> toAdd)
         {
-            foreach (Artist element in toAdd)
+            foreach (Artist element in toAdd.Where(x => x.IsSerialization))
             {
-                if (list.Any(x => x.BinaryFilePath == element.BinaryFilePath))
+                if (list.Any(x => x.Name == element.Name))
                 {
-                    list.Remove(list.FirstOrDefault(x => x.BinaryFilePath == element.BinaryFilePath));
+                    list.Remove(list.FirstOrDefault(x => x.Name == element.Name));
                     list.Add(element);
                 }
                 else

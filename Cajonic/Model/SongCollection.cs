@@ -1,8 +1,7 @@
-﻿using System.Collections.Immutable;
-using Cajonic.Services;
+﻿using Cajonic.Services;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
+using Meziantou.Framework.WPF.Collections;
 
 namespace Cajonic.Model
 {
@@ -10,11 +9,11 @@ namespace Cajonic.Model
     {
         private readonly ISongLoader mLoader;
 
-        public ObservableCollection<Song> SongList { get; set; }
+        public ConcurrentObservableCollection<Song> SongList { get; set; }
 
         public SongCollection(ISongLoader songLoader)
         {
-            SongList = new ObservableCollection<Song>();
+            SongList = new ConcurrentObservableCollection<Song>();
             mLoader = songLoader;
         }
 

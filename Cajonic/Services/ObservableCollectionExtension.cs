@@ -1,14 +1,15 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using Meziantou.Framework.WPF.Collections;
 
 namespace Cajonic.Services
 {
     public static class ObservableCollectionExtension
     {
-        public static void AddUniqueRange<TSong>(this ObservableCollection<TSong> collection, IEnumerable<TSong> songs)
+        public static void AddUniqueRange<T>(this ConcurrentObservableCollection<T> collection, IEnumerable<T> songs)
         {
-            foreach (TSong song in songs)
+            foreach (T song in songs)
             {
                 if (!collection.Contains(song))
                 {

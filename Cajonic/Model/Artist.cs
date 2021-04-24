@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
@@ -36,23 +36,29 @@ namespace Cajonic.Model
             BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
         }
 
-        public Artist(Song song)
-        {
-            Name = song.ArtistName;
-            BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
-            ArtistAlbums.TryAdd(ArtistAlbums.Count, song.Album);
-        }
-
         public Artist(Track track)
         {
             Name = track.Artist;
-            BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
+            string copyName = ReplaceInvalidChars(Name);
+            BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{copyName}.bin");
+            Album newAlbum = new Album(track);
+            if (track.DiscTotal != 0 && track.DiscTotal != 1)
+            {
+                Album newCd = new Album(track)
+                {
+                    CDs = null
+                };
+                newAlbum.CDs.TryAdd(track.DiscNumber, newCd);
+            }
+            ArtistAlbums.TryAdd(track.Album, newAlbum);
+            IsToModify = true;
         }
 
 
         public async void SerializeArtistAsync()
         {
             IsSerialization = false;
+            IsToModify = false;
             await SerializationHelper.WriteToBinaryFile(BinaryFilePath, this);
         }
 
@@ -71,8 +77,38 @@ namespace Cajonic.Model
             {
                 mByteProfileImage = BitmapHelper.ConvertToBytes(ProfileImage);
             }
+
+            ImmutableList<Song> allAlbumSongs = taskArtist.Result.ArtistAlbums.
+                SelectMany(x => x.Value.AlbumSongCollection.Values).ToImmutableList();
+
+            ImmutableList<Song> allCdSongs = taskArtist.Result.ArtistAlbums.
+                SelectMany(x => x.Value.CDs.Values).
+                SelectMany(x => x.AlbumSongCollection.Values).ToImmutableList();
+
+            foreach (Song song in allAlbumSongs)
+            {
+                song.Artist = this;
+                song.Album = taskArtist.Result.ArtistAlbums.FirstOrDefault(x => x.Value.AlbumSongCollection.Values.Contains(song)).Value;
+            }
+
+            foreach (Song song in allCdSongs)
+            {
+                song.Artist = this;
+                song.Album = taskArtist.Result.ArtistAlbums.SelectMany(x => x.Value.CDs)
+                    .FirstOrDefault(x => x.Key == song.DiscNumber).Value;
+                song.Album.CDs = null;
+            }
+
             ArtistAlbums = taskArtist.Result.ArtistAlbums;
+
             return this;
+        }
+
+        private static string ReplaceInvalidChars(string illegal)
+        {
+            string invalid = new string(Path.GetInvalidFileNameChars()) + new string(Path.GetInvalidPathChars());
+
+            return invalid.Aggregate(illegal, (current, c) => current.Replace(c.ToString(), "_"));
         }
 
         public static Artist DeserializeArtistHelperStatic(string filePath)
@@ -84,15 +120,16 @@ namespace Cajonic.Model
         [ProtoMember(2)]
         public string Name { get; set; }
         [ProtoMember(3)]
-        public ConcurrentDictionary<int, Album> ArtistAlbums { get; set; } = new ConcurrentDictionary<int, Album>();
+        public ConcurrentDictionary<string, Album> ArtistAlbums { get; set; } = new ConcurrentDictionary<string, Album>();
 
         public bool IsSerialization { get; set; }
+        public bool IsToModify { get; set; }
 
-        public bool Equals([AllowNull] Artist other) => other?.BinaryFilePath == BinaryFilePath;
+        public bool Equals([AllowNull] Artist other) => other?.Name == Name;
 
         public override int GetHashCode()
         {
-            return $"{BinaryFilePath}".GetHashCode();
+            return $"{Name}".GetHashCode();
         }
     }
 }
