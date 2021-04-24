@@ -13,7 +13,6 @@ namespace Cajonic.Services
 {
     public class SongLoader : ISongLoader
     {
-        private static object mLock = new object();
         public ImmutableList<Song> LoadSongs(string[] paths, ICollection<Artist> artists)
         {
             ConcurrentBag<Artist> modifiedArtists = new ConcurrentBag<Artist>(artists);
@@ -41,41 +40,43 @@ namespace Cajonic.Services
                     throw new Exception("This type of file isn't supported.");
                 }
 
-                Parallel.ForEach(files, file =>
+                foreach (FileInfo file in files)
                 {
                     if (!IsSupportedSongExtension(file.FullName))
                     {
-                        return;
+                        continue;
                     }
 
                     Track track = new Track(file.FullName);
+                    Artist concurrentArtist = new Artist(track);
 
-                    lock (mLock)
+                    if (!concurrentArtistsDictionary.ContainsKey(track.Artist))
                     {
-                        if (!concurrentArtistsDictionary.ContainsKey(track.Artist))
+                        concurrentArtistsDictionary.TryAdd(track.Artist, concurrentArtist);
+                    }
+                    else
+                    {
+                        concurrentArtist = concurrentArtistsDictionary[concurrentArtist.Name];
+                        if (!concurrentArtist.ArtistAlbums.ContainsKey(track.Album))
                         {
-                            concurrentArtistsDictionary.TryAdd(track.Artist, new Artist(track));
+                            concurrentArtist.ArtistAlbums.TryAdd(track.Album, new Album(track));
+                        }
+
+                        if (track.DiscNumber > 0)
+                        {
+                            
+                            concurrentArtist.ArtistAlbums[track.Album].CDs
+                            .TryAdd(track.DiscNumber, new Album(track));
                         }
                         else
                         {
-                            if (track.DiscTotal != 0 && track.DiscTotal != 1)
-                            {
-                                concurrentArtistsDictionary[track.Artist].ArtistAlbums[track.Album].CDs
-                                    .TryAdd(track.DiscNumber, new Album(track));
-                            }
-                            else
-                            {
-                                concurrentArtistsDictionary[track.Artist].ArtistAlbums
-                                    .TryAdd(track.Album, new Album(track));
-                            }
+                            concurrentArtist.ArtistAlbums
+                                .TryAdd(track.Album, new Album(track));
                         }
                     }
-
-                    foreach (Artist concurrentArtist in concurrentArtistsDictionary.Values)
-                    {
-                        AddSongs(concurrentArtist, track, concurrentArtist.ArtistAlbums.Values);
-                    }
-                });
+                    
+                    AddSongs(concurrentArtist, track, concurrentArtist.ArtistAlbums.Values);
+                }
             }
 
             modifiedArtists.AddRange(concurrentArtistsDictionary.Values);
@@ -92,22 +93,23 @@ namespace Cajonic.Services
             return artists.SelectMany(x => x.ArtistAlbums.Values).OrderBy(x => x.Title)
                 .SelectMany(x => x.AlbumSongCollection.Values)
                 .Concat(artists.SelectMany(x => x.ArtistAlbums.Values).OrderBy(x => x.Title)
-                    .SelectMany(x=> x.CDs.Values).SelectMany(x => x.AlbumSongCollection.Values)).OrderBy(x => x.ArtistName).ToImmutableList();
+                    .SelectMany(x=> x.CDs.Values).SelectMany(x => x.AlbumSongCollection.Values)).OrderBy(x => x.AlbumTitle).ToImmutableList();
         }
 
         private static void AddSongs(Artist artist, Track track, ICollection<Album> artistAlbums)
         {
             foreach (Album album in artistAlbums)
             {
-                if (artist.Name != track.Artist && album.Title != track.Album)
+                if (artist.Name != track.Artist || album.Title != track.Album)
                 {
                     continue;
                 }
 
-                if (track.DiscTotal == 1 || track.DiscTotal == 0)
+                if (track.DiscNumber > 0)
                 {
                     Song newSong = new Song(track);
-                    album.AlbumSongCollection.TryAdd(newSong.TrackNumber ?? album.AlbumSongCollection.Count, newSong);
+                    album.CDs[track.DiscNumber].AlbumSongCollection
+                        .TryAdd(newSong.TrackNumber ?? album.CDs[track.DiscNumber].AlbumSongCollection.Count, newSong);
                     newSong.Artist = artist;
                     newSong.Album = album;
                 }
@@ -115,7 +117,8 @@ namespace Cajonic.Services
                 else
                 {
                     Song newSong = new Song(track);
-                    album.CDs[track.DiscNumber].AlbumSongCollection.TryAdd(newSong.TrackNumber.Value, newSong);
+                    album.AlbumSongCollection
+                        .TryAdd(newSong.TrackNumber ?? album.AlbumSongCollection.Count, newSong);
                     newSong.Artist = artist;
                     newSong.Album = album;
                 }

@@ -42,7 +42,7 @@ namespace Cajonic.Model
             string copyName = ReplaceInvalidChars(Name);
             BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{copyName}.bin");
             Album newAlbum = new Album(track);
-            if (track.DiscTotal != 0 && track.DiscTotal != 1)
+            if (track.DiscNumber > 0)
             {
                 Album newCd = new Album(track)
                 {

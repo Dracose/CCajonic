@@ -55,6 +55,8 @@ namespace Cajonic.Model
         [ProtoMember(5)]
         public ConcurrentDictionary<int, Album> CDs { get; set; } = new ConcurrentDictionary<int, Album>();
 
+        [ProtoMember(6)] public bool IsCompilation;
+
         public int CompareTo(Album other)
         {
             int result = string.Compare(ArtistName, other?.ArtistName, StringComparison.Ordinal);
