@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Media.Imaging;
@@ -15,18 +16,25 @@ namespace Cajonic.Model
     {
         public BitmapImage Artwork => mByteArtwork;
 
-        private BitmapImage mByteArtwork
+        private int? mUseless;
+        [ProtoMember(8)]
+        public int? AlbumYear
         {
             get
             {
-                //if (AlbumSongCollection.Any() && AlbumSongCollection.Values.Select(item => item.ByteArtwork).Where(x => x != null).Distinct().Skip(1).Any())
-                //{
-                //    return AlbumSongCollection.Values.FirstOrDefault()?.ByteArtwork;
-                //}
-
-                return null;
+                return AllSongs.Select(x => x.Year).Distinct().Skip(1).Any()
+                    ? AllSongs.Select(x => x.Year).FirstOrDefault()
+                    : null;
             }
+            set => mUseless = value;
         }
+
+        private BitmapImage mByteArtwork =>
+            //if (AlbumSongCollection.Any() && AlbumSongCollection.Values.Select(item => item.ByteArtwork).Where(x => x != null).Distinct().Skip(1).Any())
+            //{
+            //    return AlbumSongCollection.Values.FirstOrDefault()?.ByteArtwork;
+            //}
+            null;
 
         public Album()
         {
@@ -51,11 +59,30 @@ namespace Cajonic.Model
         public string ArtistName { get; set; }
         [ProtoMember(4)]
         public ConcurrentDictionary<int, Song> AlbumSongCollection { get; set; } = new ConcurrentDictionary<int, Song>();
-
         [ProtoMember(5)]
-        public ConcurrentDictionary<int, Album> CDs { get; set; } = new ConcurrentDictionary<int, Album>();
+        public ConcurrentDictionary<int, CD> CDs { get; set; } = new ConcurrentDictionary<int, CD>();
+        [ProtoMember(6)]
+        public bool IsCompilation;
 
-        [ProtoMember(6)] public bool IsCompilation;
+        [ProtoMember(7)] 
+        public ConcurrentSet<Song> UnlistedSongs { get; set; } = new ConcurrentSet<Song>();
+
+
+        public bool HasCDs => !CDs.IsEmpty;
+
+        public ImmutableList<Song> AllSongs
+        {
+            get
+            {
+                if (HasCDs)
+                {
+                    return AlbumSongCollection.Values.Concat(CDs.Values.SelectMany(x => x.SongCollection.Values))
+                        .ToImmutableList();
+                }
+
+                return AlbumSongCollection.Values.ToImmutableList();
+            }
+        }
 
         public int CompareTo(Album other)
         {
@@ -88,8 +115,8 @@ namespace Cajonic.Model
                 return false;
             }
 
-            IEnumerable<string> otherCdFilePaths = other.CDs.SelectMany(x => x.Value.AlbumSongCollection).Select(x => x.Value.FilePath);
-            IEnumerable<string> thisFilePaths = CDs.SelectMany(x => x.Value.AlbumSongCollection).Select(x => x.Value.FilePath);
+            IEnumerable<string> otherCdFilePaths = other.CDs.SelectMany(x => x.Value.SongCollection).Select(x => x.Value.FilePath);
+            IEnumerable<string> thisFilePaths = CDs.SelectMany(x => x.Value.SongCollection).Select(x => x.Value.FilePath);
             bool isFilePathsSame = EnumerableExtension.Except(otherCdFilePaths, thisFilePaths).Any();
 
             return other.Title == Title && other.ArtistName == ArtistName &&

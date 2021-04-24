@@ -44,10 +44,7 @@ namespace Cajonic.Model
             Album newAlbum = new Album(track);
             if (track.DiscNumber > 0)
             {
-                Album newCd = new Album(track)
-                {
-                    CDs = null
-                };
+                CD newCd = new CD(track);
                 newAlbum.CDs.TryAdd(track.DiscNumber, newCd);
             }
             ArtistAlbums.TryAdd(track.Album, newAlbum);
@@ -83,7 +80,7 @@ namespace Cajonic.Model
 
             ImmutableList<Song> allCdSongs = taskArtist.Result.ArtistAlbums.
                 SelectMany(x => x.Value.CDs.Values).
-                SelectMany(x => x.AlbumSongCollection.Values).ToImmutableList();
+                SelectMany(x => x.SongCollection.Values).ToImmutableList();
 
             foreach (Song song in allAlbumSongs)
             {
@@ -94,9 +91,11 @@ namespace Cajonic.Model
             foreach (Song song in allCdSongs)
             {
                 song.Artist = this;
-                song.Album = taskArtist.Result.ArtistAlbums.SelectMany(x => x.Value.CDs)
-                    .FirstOrDefault(x => x.Key == song.DiscNumber).Value;
-                song.Album.CDs = null;
+                song.Album = taskArtist.Result.ArtistAlbums
+                    .FirstOrDefault(x => x.Value.CDs
+                        .SelectMany(x=> x.Value.SongCollection)
+                        .Select(x => x.Value.FilePath)
+                        .Contains(song.FilePath)).Value;
             }
 
             ArtistAlbums = taskArtist.Result.ArtistAlbums;
@@ -120,7 +119,7 @@ namespace Cajonic.Model
         [ProtoMember(2)]
         public string Name { get; set; }
         [ProtoMember(3)]
-        public ConcurrentDictionary<string, Album> ArtistAlbums { get; set; } = new ConcurrentDictionary<string, Album>();
+        public ConcurrentDictionary<string, Album> ArtistAlbums { get; set; } = new ConcurrentDictionary<string, Album>(StringComparer.InvariantCultureIgnoreCase);
 
         public bool IsSerialization { get; set; }
         public bool IsToModify { get; set; }

@@ -117,7 +117,12 @@ namespace Cajonic.ViewModel
             {
                 foreach (Album album in artist.ArtistAlbums.Values.ToList())
                 {
-                    SongList.AddUniqueRange(album.AlbumSongCollection.Values);
+                    if (!album.IsCompilation) 
+                    {
+                        Albums.Add(album);
+                    }
+
+                    SongList.AddUniqueRange(album.AllSongs);
                 }
             }
         }
@@ -126,7 +131,9 @@ namespace Cajonic.ViewModel
 
         public ConcurrentObservableCollection<Song> SongList => mCurrentQueue.SongList;
 
-        public ObservableCollection<Artist> Artists { get; set; } = new ObservableCollection<Artist>();
+        public ConcurrentObservableCollection<Artist> Artists { get; set; } = new ConcurrentObservableCollection<Artist>();
+
+        public ConcurrentObservableCollection<Album> Albums { get; set; } = new ConcurrentObservableCollection<Album>();
 
         private string mQueueInfo;
         public string QueueInfo
@@ -310,8 +317,10 @@ namespace Cajonic.ViewModel
         private void StopSongAction()
         {
             mPlayer.Stop();
-            PlayingSong.ByteArtwork = null;
-            PlayingSong = null;
+            if (PlayingSong != null) {
+                PlayingSong.ByteArtwork = null;
+                PlayingSong = null;
+            }
             StopTimers();
             PlayingProgress = 0;
             mSeconds = 0;
