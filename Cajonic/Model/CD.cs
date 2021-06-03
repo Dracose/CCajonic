@@ -1,11 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Windows.Media.Imaging;
 using ATL;
-using Cajonic.Services;
 using ProtoBuf;
 
 namespace Cajonic.Model
@@ -57,10 +54,10 @@ namespace Cajonic.Model
         [ProtoMember(3)]
         public string ArtistName { get; set; }
         [ProtoMember(4)]
-        public ConcurrentDictionary<int, Song> SongCollection { get; set; } = new ConcurrentDictionary<int, Song>();
+        public ConcurrentDictionary<int, Song> SongCollection { get; set; } = new();
         [ProtoMember(6)]
         public bool IsCompilation;
-        [ProtoMember(7)] public ConcurrentSet<Song> UnlistedSongs { get; set; } = new ConcurrentSet<Song>();
+        [ProtoMember(7)] public ConcurrentSet<Song> UnlistedSongs { get; set; } = new();
 
         public int CompareTo(CD other)
         {

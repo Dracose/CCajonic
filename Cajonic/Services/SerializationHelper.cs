@@ -1,5 +1,4 @@
 ﻿using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 using ProtoBuf;
 
@@ -18,6 +17,11 @@ namespace Cajonic.Services
         {
             await using Stream stream = File.Open(filePath, FileMode.Open);
             return (T)Serializer.Deserialize<T>(stream);
+        }
+
+        public static Task DestroyBinaryFile(string filePath)
+        {
+            return File.Exists(filePath) ? Task.Run(() => File.Delete(filePath)) : Task.CompletedTask;
         }
     }
 }

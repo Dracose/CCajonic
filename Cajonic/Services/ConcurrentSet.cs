@@ -6,7 +6,7 @@ using System.Linq;
 
 public class ConcurrentSet<T> : IEnumerable<T>, ISet<T>, ICollection<T>
 {
-    private readonly ConcurrentDictionary<T, byte> _dictionary = new ConcurrentDictionary<T, byte>();
+    private readonly ConcurrentDictionary<T, byte> _dictionary = new();
 
     /// <summary>
     /// Returns an enumerator that iterates through the collection.

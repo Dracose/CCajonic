@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading.Tasks;
 using Meziantou.Framework.WPF.Collections;
 
 namespace Cajonic.Services
@@ -18,12 +19,19 @@ namespace Cajonic.Services
             }
         }
 
-        public static void AddUnique<T>(this ObservableCollection<T> list, T toAdd)
+        public static IEnumerable<T> OrderBy<T>(this ConcurrentObservableCollection<T> enumerable, string property)
         {
-            if (!list.Contains(toAdd))
-            {
-                list.Add(toAdd);
-            }
+            return enumerable.OrderBy(x => GetProperty(x, property));
+        }
+        
+        public static IEnumerable<T> OrderByDescending<T>(this ConcurrentObservableCollection<T> enumerable, string property)
+        {
+            return enumerable.OrderByDescending(x => GetProperty(x, property));
+        }
+	
+        private static object GetProperty(object o, string propertyName)
+        {
+            return o.GetType().GetProperty(propertyName)?.GetValue(o, null);
         }
     }
 }

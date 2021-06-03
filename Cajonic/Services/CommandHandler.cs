@@ -6,45 +6,55 @@ namespace Cajonic.Services
 {
     public class CommandHandler : ICommand
     {
-        private Action _action;
-        private Func<bool> _canExecute;
-
-        /// <summary>
-        /// Creates instance of the command handler
-        /// </summary>
-        /// <param name="action">Action to be executed by the command</param>
-        /// <param name="canExecute">A bolean property to containing current permissions to execute the command</param>
+        private readonly Action mAction;
+        private readonly Func<bool> mCanExecute;
+        
         public CommandHandler(Action action, Func<bool> canExecute)
         {
-            _action = action;
-            _canExecute = canExecute;
+            mAction = action;
+            mCanExecute = canExecute;
         }
-
-        /// <summary>
-        /// Wires CanExecuteChanged event 
-        /// </summary>
+        
         public event EventHandler CanExecuteChanged
         {
             add => CommandManager.RequerySuggested += value;
             remove => CommandManager.RequerySuggested -= value;
         }
-
-        /// <summary>
-        /// Forcess checking if execute is allowed
-        /// </summary>
-        /// <param name="parameter"></param>
-        /// <returns></returns>
+        
         public bool CanExecute(object parameter)
         {
-            return _canExecute.Invoke();
+            return mCanExecute.Invoke();
         }
 
         public void Execute(object parameter)
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _action();
+                mAction();
             });
+        }
+    }
+    
+    public class RelayCommand : ICommand
+    {
+        private readonly Action<object> mAction;
+        private readonly bool mCanExecute;
+        public RelayCommand(Action<object> action, bool canExecute)
+        {
+            mAction = action;
+            mCanExecute = canExecute;
+        }
+
+        public bool CanExecute(object parameter)
+        {
+            return mCanExecute;
+        }
+
+        public event EventHandler CanExecuteChanged;
+
+        public void Execute(object parameter)
+        {
+            mAction(parameter);
         }
     }
 }

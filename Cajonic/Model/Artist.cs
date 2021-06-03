@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
@@ -19,6 +18,9 @@ namespace Cajonic.Model
     {
         public string BinaryFilePath { get; set; }
 
+        public const string UnknownArtist = "Unknown Artist";
+        public static readonly string ArtistDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists");
+
         private BitmapImage mProfileImage;
         public BitmapImage ProfileImage
         {
@@ -33,21 +35,25 @@ namespace Cajonic.Model
         {
             Name = string.Empty;
             ProfileImage = null;
-            BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{Name}.bin");
+            BinaryFilePath = $"{ArtistDirectory}\\{Name}.bin";
+        }
+
+        public Artist(Song song)
+        {
+            Name = song.ArtistName;
+            ProfileImage = null;
+            BinaryFilePath = $"{ArtistDirectory}\\{Name}.bin";
         }
 
         public Artist(Track track)
         {
-            Name = track.Artist;
+            Name = string.IsNullOrEmpty(track.Artist) ? UnknownArtist : track.Artist;
             string copyName = ReplaceInvalidChars(Name);
-            BinaryFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{copyName}.bin");
-            Album newAlbum = new Album(track);
-            if (track.DiscNumber > 0)
-            {
-                CD newCd = new CD(track);
-                newAlbum.CDs.TryAdd(track.DiscNumber, newCd);
-            }
-            ArtistAlbums.TryAdd(track.Album, newAlbum);
+            BinaryFilePath = Name == UnknownArtist ? Path.Combine(ArtistDirectory, $"{Name}.bin") :
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), $"Cajonic\\SaveData\\Artists\\{copyName}.bin");
+            Album newAlbum = new(track, Name);
+            
+            ArtistAlbums.TryAdd(newAlbum.Title, newAlbum);
             IsToModify = true;
         }
 
@@ -56,7 +62,13 @@ namespace Cajonic.Model
         {
             IsSerialization = false;
             IsToModify = false;
+            IsDestruction = false;
             await SerializationHelper.WriteToBinaryFile(BinaryFilePath, this);
+        }
+
+        public void DestroySerializedArtist()
+        {
+            SerializationHelper.DestroyBinaryFile(BinaryFilePath);
         }
 
         private static async Task<Artist> DeserializeArtistAsync(string filePath)
@@ -93,9 +105,16 @@ namespace Cajonic.Model
                 song.Artist = this;
                 song.Album = taskArtist.Result.ArtistAlbums
                     .FirstOrDefault(x => x.Value.CDs
-                        .SelectMany(x=> x.Value.SongCollection)
+                        .SelectMany(x => x.Value.SongCollection)
                         .Select(x => x.Value.FilePath)
                         .Contains(song.FilePath)).Value;
+            }
+
+            foreach (Song song in taskArtist.Result.ArtistAlbums.Values.SelectMany(x => x.UnlistedSongs))
+            {
+                song.Artist = this;
+                song.Album = taskArtist.Result.ArtistAlbums.Values.FirstOrDefault(x =>
+                    x.UnlistedSongs.Select(x => x.FilePath).Contains(song.FilePath));
             }
 
             ArtistAlbums = taskArtist.Result.ArtistAlbums;
@@ -112,17 +131,18 @@ namespace Cajonic.Model
 
         public static Artist DeserializeArtistHelperStatic(string filePath)
         {
-            Artist artist = new Artist();
+            Artist artist = new();
             return artist.DeserializeArtistHelper(filePath);
         }
 
         [ProtoMember(2)]
         public string Name { get; set; }
         [ProtoMember(3)]
-        public ConcurrentDictionary<string, Album> ArtistAlbums { get; set; } = new ConcurrentDictionary<string, Album>(StringComparer.InvariantCultureIgnoreCase);
+        public ConcurrentDictionary<string, Album> ArtistAlbums { get; set; } = new(StringComparer.InvariantCultureIgnoreCase);
 
         public bool IsSerialization { get; set; }
-        public bool IsToModify { get; set; }
+        public bool IsDestruction { get; set; }
+        public bool IsToModify { get; private set; }
 
         public bool Equals([AllowNull] Artist other) => other?.Name == Name;
 

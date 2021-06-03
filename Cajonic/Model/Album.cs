@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Media.Imaging;
 using ATL;
@@ -15,9 +14,10 @@ namespace Cajonic.Model
     public class Album : IEquatable<Album>, IComparable<Album>
     {
         public BitmapImage Artwork => mByteArtwork;
+        public const string UnknownAlbum = "Unknown Album";
 
         private int? mUseless;
-        [ProtoMember(8)]
+        [ProtoMember(9)]
         public int? AlbumYear
         {
             get
@@ -36,21 +36,32 @@ namespace Cajonic.Model
             //}
             null;
 
-        public Album()
-        {
-        }
+        public Album() { }
 
-        public Album(Track track)
+        public Album(Track track, string artistName)
         {
-            Title = track.Album;
-            ArtistName = track.Artist;
+            Title = string.IsNullOrEmpty(track.Album) ? UnknownAlbum : track.Album;
+            ArtistName = artistName;
+            DateAdded = DateTime.Now;
+            
+            if (track.DiscNumber > 0)
+            {
+                CD newCd = new(track);
+                CDs.TryAdd(track.DiscNumber, newCd);
+            }
         }
 
         public Album(Song song)
         {
             Title = song.AlbumTitle;
             ArtistName = song.ArtistName;
-            CDs = null;
+            DateAdded = DateTime.Now;
+            
+            if (song.DiscNumber > 0)
+            {
+                CD newCd = new(song);
+                CDs.TryAdd(song.DiscNumber.Value, newCd);
+            }
         }
 
         [ProtoMember(2)]
@@ -58,14 +69,15 @@ namespace Cajonic.Model
         [ProtoMember(3)]
         public string ArtistName { get; set; }
         [ProtoMember(4)]
-        public ConcurrentDictionary<int, Song> AlbumSongCollection { get; set; } = new ConcurrentDictionary<int, Song>();
+        public ConcurrentDictionary<int, Song> AlbumSongCollection { get; set; } = new();
         [ProtoMember(5)]
-        public ConcurrentDictionary<int, CD> CDs { get; set; } = new ConcurrentDictionary<int, CD>();
+        public ConcurrentDictionary<int, CD> CDs { get; set; } = new();
         [ProtoMember(6)]
         public bool IsCompilation;
-
+        [ProtoMember(8)] 
+        public DateTime DateAdded { get; }
         [ProtoMember(7)] 
-        public ConcurrentSet<Song> UnlistedSongs { get; set; } = new ConcurrentSet<Song>();
+        public ConcurrentSet<Song> UnlistedSongs { get; set; } = new();
 
 
         public bool HasCDs => !CDs.IsEmpty;
@@ -76,11 +88,11 @@ namespace Cajonic.Model
             {
                 if (HasCDs)
                 {
-                    return AlbumSongCollection.Values.Concat(CDs.Values.SelectMany(x => x.SongCollection.Values))
+                    return AlbumSongCollection.Values.Concat(CDs.Values.SelectMany(x => x.SongCollection.Values)).Concat(UnlistedSongs)
                         .ToImmutableList();
                 }
 
-                return AlbumSongCollection.Values.ToImmutableList();
+                return AlbumSongCollection.Values.Concat(UnlistedSongs).ToImmutableList();
             }
         }
 
@@ -115,14 +127,11 @@ namespace Cajonic.Model
                 return false;
             }
 
-            IEnumerable<string> otherCdFilePaths = other.CDs.SelectMany(x => x.Value.SongCollection).Select(x => x.Value.FilePath);
-            IEnumerable<string> thisFilePaths = CDs.SelectMany(x => x.Value.SongCollection).Select(x => x.Value.FilePath);
-            bool isFilePathsSame = EnumerableExtension.Except(otherCdFilePaths, thisFilePaths).Any();
+            IEnumerable<string> otherCdFilePaths = other.CDs.SelectMany(x => x.Value.SongCollection).Select(x => x.Value.FilePath).ToList();
+            IEnumerable<string> thisFilePaths = CDs.SelectMany(x => x.Value.SongCollection).Select(x => x.Value.FilePath).ToList();
+            bool isFilePathsSame = !EnumerableExtension.Except(otherCdFilePaths, thisFilePaths).Any();
 
-            return other.Title == Title && other.ArtistName == ArtistName &&
-                   other.AlbumSongCollection.Select(x => x.Value.FilePath).ToList() ==
-                   (AlbumSongCollection.Select(x => x.Value.FilePath)).ToList() &&
-                   other.CDs.Keys.ToList() == CDs.Keys.ToList() && isFilePathsSame;
+            return other.Title == Title && other.ArtistName == ArtistName && isFilePathsSame;
 
         }
     }

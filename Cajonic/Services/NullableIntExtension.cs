@@ -1,14 +1,40 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Linq;
 
 namespace Cajonic.Services
 {
     public static class NullableIntExtension
     {
-        public static int? ToNullableInt(this string s)
+        public static int? ToVisualNullableInt(this string input, int? oldNumber)
         {
-            return int.TryParse(s, out int i) ? i : (int?)null;
+            if (input.Length > 4)
+            {
+                return oldNumber;
+            }
+            
+            if (int.TryParse(input, out int nullable))
+            {
+                if (nullable > 0)
+                {
+                    return nullable;
+                }
+
+                if (int.TryParse(new string(input.Where(char.IsDigit).ToArray()), out nullable))
+                {
+                    return nullable;
+                }
+            }
+
+            if (int.TryParse(new string(input.Where(char.IsDigit).ToArray()), out nullable))
+            {
+                return nullable;
+            }
+
+            return null;
+        }
+        
+        public static string NullableIntToString(this int? input)
+        {
+            return input.ToString();
         }
     }
 }

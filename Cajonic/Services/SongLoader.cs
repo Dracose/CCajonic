@@ -5,7 +5,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -13,76 +12,86 @@ namespace Cajonic.Services
 {
     public class SongLoader : ISongLoader
     {
-        public ImmutableList<Song> LoadSongs(string[] paths, ICollection<Artist> artists)
+        public ImmutableList<Song> LoadSongs(string[] paths, ICollection<Artist> artists, ICollection<Song> allSongs)
         {
-            ConcurrentBag<Artist> modifiedArtists = new ConcurrentBag<Artist>(artists);
-            ConcurrentBag<Artist> originalArtistBag = new ConcurrentBag<Artist>(artists);
+            ConcurrentBag<Artist> modifiedArtists = new(artists);
+            ConcurrentBag<Artist> originalArtistBag = new(artists);
             ConcurrentDictionary<string, Artist> concurrentArtistsDictionary =
-                new ConcurrentDictionary<string, Artist>(StringComparer.InvariantCultureIgnoreCase);
+                new(StringComparer.InvariantCultureIgnoreCase);
 
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-
-            foreach (string path in paths)
+            ConcurrentBag<FileInfo> files = new();
+            Parallel.ForEach(paths, path =>
             {
-                ConcurrentBag<FileInfo> files = new ConcurrentBag<FileInfo>();
                 FileAttributes fileAttributes = File.GetAttributes(path);
                 if (!fileAttributes.HasFlag(FileAttributes.Directory))
                 {
-                    FileInfo fileInfo = new FileInfo(path);
+                    FileInfo fileInfo = new(path);
                     files.Add(fileInfo);
                 }
                 else
                 {
-                    DirectoryInfo directoryInfo = new DirectoryInfo(path);
-                    files = new ConcurrentBag<FileInfo>(directoryInfo.GetFiles("*", SearchOption.AllDirectories));
+                    DirectoryInfo directoryInfo = new(path);
+                    files.AddRange(directoryInfo.GetFiles("*", SearchOption.AllDirectories));
                 }
+            });
 
-                if (files.Count == 1 && !IsSupportedSongExtension(path))
-                {
-                    throw new Exception("This type of file isn't supported.");
-                }
-
-                Parallel.ForEach(files, file =>
-                {
-                    if (!IsSupportedSongExtension(file.FullName))
-                    {
-                        return;
-                    }
-
-                    Track track = new Track(file.FullName);
-                    Artist concurrentArtist = new Artist(track);
-
-                    if (!concurrentArtistsDictionary.ContainsKey(track.Artist))
-                    {
-                        if (string.IsNullOrEmpty(track.Artist))
-                        {
-                            // TODO: Handle Artist that doesn't exist
-                        }
-                        concurrentArtistsDictionary.TryAdd(track.Artist, concurrentArtist);
-                    }
-                    else
-                    {
-                        concurrentArtist = concurrentArtistsDictionary[concurrentArtist.Name];
-                        if (!concurrentArtist.ArtistAlbums.ContainsKey(track.Album))
-                        {
-                            concurrentArtist.ArtistAlbums.TryAdd(track.Album, new Album(track));
-                        }
-
-                        if (track.DiscNumber > 0 && !concurrentArtist.ArtistAlbums[track.Album].CDs.ContainsKey(track.DiscNumber))
-                        {
-                            concurrentArtist.ArtistAlbums[track.Album].CDs
-                                .TryAdd(track.DiscNumber, new CD(track));
-                        }
-                    }
-
-                    Album relevantAlbum =
-                        concurrentArtist.ArtistAlbums.Values.FirstOrDefault(x => string.Equals(x.Title, track.Album, StringComparison.InvariantCultureIgnoreCase));
-                    AddSongs(concurrentArtist, track, relevantAlbum);
-                });
+            if (files.Count == 1 && paths.Length == 1 && !IsSupportedSongExtension(files.First().FullName))
+            {
+                throw new Exception("This type of file isn't supported.");
             }
 
-            sw.Stop();
+            Parallel.ForEach(files, file =>
+            {
+                if (!IsSupportedSongExtension(file.FullName))
+                {
+                    return;
+                }
+
+                if (allSongs.Select(x => x.FilePath).Contains(file.FullName))
+                {
+                    return;
+                }
+
+                Track track = new(file.FullName);
+                Artist concurrentArtist = new(track);
+
+                if (!concurrentArtistsDictionary.ContainsKey(concurrentArtist.BinaryFilePath))
+                {
+                    concurrentArtistsDictionary.TryAdd(concurrentArtist.BinaryFilePath, concurrentArtist);
+                    concurrentArtist = concurrentArtistsDictionary[concurrentArtist.BinaryFilePath];
+                }
+                else
+                {
+                    concurrentArtist = concurrentArtistsDictionary[concurrentArtist.BinaryFilePath];
+                    if (string.IsNullOrEmpty(track.Album) &&
+                        !concurrentArtist.ArtistAlbums.ContainsKey(Album.UnknownAlbum))
+                    {
+                        Album unknownAlbum = new(track, concurrentArtist.Name);
+                        concurrentArtist.ArtistAlbums.TryAdd(unknownAlbum.Title, unknownAlbum);
+                    }
+
+                    else if (!string.IsNullOrEmpty(track.Album) &&
+                             !concurrentArtist.ArtistAlbums.ContainsKey(track.Album))
+                    {
+                        Album newAlbum = new(track, concurrentArtist.Name);
+                        concurrentArtist.ArtistAlbums.TryAdd(track.Album, newAlbum);
+                    }
+
+                    if (track.DiscNumber > 0 &&
+                        !concurrentArtist.ArtistAlbums[track.Album].CDs.ContainsKey(track.DiscNumber))
+                    {
+                        CD newCd = new(track);
+                        concurrentArtist.ArtistAlbums[track.Album].CDs.TryAdd(track.DiscNumber, newCd);
+                    }
+                }
+
+                Album relevantAlbum = string.IsNullOrEmpty(track.Album)
+                    ? concurrentArtist.ArtistAlbums[Album.UnknownAlbum]
+                    : concurrentArtist.ArtistAlbums.Values.FirstOrDefault(x =>
+                        string.Equals(x.Title, track.Album, StringComparison.InvariantCultureIgnoreCase));
+                AddSongs(concurrentArtist, track, relevantAlbum);
+            });
+
 
             modifiedArtists.AddRange(concurrentArtistsDictionary.Values);
             modifiedArtists = new ConcurrentBag<Artist>(MergeArtists(modifiedArtists, originalArtistBag));
@@ -95,48 +104,75 @@ namespace Cajonic.Services
                 artist.SerializeArtistAsync();
             }
 
-            return artists.SelectMany(x => x.ArtistAlbums.Values)
-                .SelectMany(x => x.AlbumSongCollection.Values)
-                .Concat(artists.SelectMany(x => x.ArtistAlbums.Values).OrderBy(x => x.Title)
-                    .SelectMany(x => x.CDs.Values).SelectMany(x => x.SongCollection.Values))
-                .OrderBy(x => x.DiscNumber).ThenBy(x => x.AlbumTitle).ThenBy(x => x.TrackNumber).ToImmutableList();
+            ImmutableList<Song> songsToReturn = artists.SelectMany(x => x.ArtistAlbums.Values)
+                .SelectMany(x => x.AllSongs)
+                .OrderBy(x => x.ArtistName)
+                .ThenBy(x => x.AlbumTitle)
+                .ThenBy(x => x.DiscNumber)
+                .ThenBy(x => x.TrackNumber).ToImmutableList();
+
+            return songsToReturn;
         }
 
         private static void AddSongs(Artist artist, Track track, Album relevantAlbum)
         {
-            if (!string.Equals(artist.Name, track.Artist, StringComparison.InvariantCultureIgnoreCase) ||
-                !string.Equals(relevantAlbum.Title, track.Album, StringComparison.InvariantCultureIgnoreCase))
+            if (!string.Equals(artist.Name, track.Artist, StringComparison.InvariantCultureIgnoreCase) &&
+                !string.IsNullOrEmpty(track.Artist) ||
+                !string.Equals(relevantAlbum.Title, track.Album, StringComparison.InvariantCultureIgnoreCase) &&
+                !string.IsNullOrEmpty(track.Album))
             {
                 return;
             }
 
             if (track.DiscNumber > 0)
             {
-                Song newSong = new Song(track);
+                Song newSong = new(track);
                 if (newSong.TrackNumber == null)
                 {
                     relevantAlbum.CDs[track.DiscNumber].UnlistedSongs.TryAdd(newSong);
                 }
                 else
                 {
-                    relevantAlbum.CDs[track.DiscNumber].SongCollection
+                    bool result = relevantAlbum.CDs[track.DiscNumber].SongCollection
                         .TryAdd(newSong.TrackNumber.Value, newSong);
+
+                    if (!result)
+                    {
+                        newSong.TrackNumber = null;
+                        relevantAlbum.CDs[track.DiscNumber].UnlistedSongs.TryAdd(newSong);
+                    }
                 }
+
                 newSong.Artist = artist;
                 newSong.Album = relevantAlbum;
             }
             else
             {
-                Song newSong = new Song(track);
+                Song newSong = new(track);
                 if (newSong.TrackNumber == null)
                 {
                     relevantAlbum.UnlistedSongs.TryAdd(newSong);
                 }
                 else
                 {
-                    relevantAlbum.AlbumSongCollection
-                        .TryAdd(newSong.TrackNumber.Value, newSong);
+                    bool result = relevantAlbum.AlbumSongCollection.TryAdd(newSong.TrackNumber.Value, newSong);
+                    if (!result)
+                    {
+                        newSong.TrackNumber = null;
+                        relevantAlbum.UnlistedSongs.TryAdd(newSong);
+                    }
                 }
+
+                if (relevantAlbum.Title == Album.UnknownAlbum)
+                {
+                    newSong.AlbumTitle = Album.UnknownAlbum;
+                }
+
+                if (artist.Name == Artist.UnknownArtist)
+                {
+                    newSong.ArtistName = Artist.UnknownArtist;
+                }
+
                 newSong.Artist = artist;
                 newSong.Album = relevantAlbum;
             }
@@ -144,26 +180,28 @@ namespace Cajonic.Services
 
         private static ConcurrentSet<Artist> MergeArtists(ConcurrentBag<Artist> modifiedArtists, ConcurrentBag<Artist> artists)
         {
-            ConcurrentSet<Artist> mergedArtists = new ConcurrentSet<Artist>();
-            foreach (Artist modArtist in modifiedArtists.Where(x => x.IsToModify))
+            ConcurrentSet<Artist> mergedArtists = new();
+            ConcurrentBag<Artist> artistsToModify = new(modifiedArtists.Where(x => x.IsToModify));
+            Parallel.ForEach(artistsToModify, modArtist =>
             {
                 Artist artistToReturn = modArtist;
                 if (!File.Exists(artistToReturn.BinaryFilePath))
                 {
                     artistToReturn.IsSerialization = true;
                     mergedArtists.Add(artistToReturn);
-                    continue;
+                    return;
                 }
 
                 Artist existingArtist = artists
-                    .FirstOrDefault(x => string.Equals(x.Name, artistToReturn.Name, StringComparison.InvariantCultureIgnoreCase));
-                ConcurrentBag<string> existingArtistKeyList = new ConcurrentBag<string>(existingArtist.ArtistAlbums.Keys.ToList());
+                    .FirstOrDefault(x =>
+                        string.Equals(x.Name, artistToReturn.Name, StringComparison.InvariantCultureIgnoreCase));
+                ConcurrentBag<string> existingArtistKeyList = new(existingArtist.ArtistAlbums.Keys.ToList());
 
                 foreach (string albumKey in existingArtistKeyList)
                 {
                     if (artistToReturn.ArtistAlbums.ContainsKey(albumKey))
                     {
-                        ConcurrentBag<Song> oldSongs = new ConcurrentBag<Song>(existingArtist
+                        ConcurrentBag<Song> oldSongs = new(existingArtist
                             .ArtistAlbums
                             .Where(x => x.Key == albumKey)
                             .SelectMany(x => x.Value.AlbumSongCollection.Values)
@@ -172,7 +210,7 @@ namespace Cajonic.Services
                                 .SelectMany(x => x.Value.SongCollection.Values))
                             .ToList());
 
-                        ConcurrentBag<Song> newSongs = new ConcurrentBag<Song>(modArtist
+                        ConcurrentBag<Song> newSongs = new(modArtist
                             .ArtistAlbums
                             .Where(x => x.Key == albumKey)
                             .SelectMany(x => x.Value.AlbumSongCollection.Values)
@@ -189,13 +227,10 @@ namespace Cajonic.Services
                         }
                     }
 
-                    ConcurrentBag<Song> songsToPointBack = new ConcurrentBag<Song>(existingArtist
+                    ConcurrentBag<Song> songsToPointBack = new(existingArtist
                         .ArtistAlbums
                         .Where(x => x.Key == albumKey)
-                        .SelectMany(x => x.Value.AlbumSongCollection.Values)
-                        .Concat(existingArtist.ArtistAlbums.Where(x => x.Key == albumKey)
-                            .SelectMany(x => x.Value.CDs)
-                            .SelectMany(x => x.Value.SongCollection.Values))
+                        .SelectMany(x => x.Value.AllSongs)
                         .ToList());
 
                     if (!artistToReturn.ArtistAlbums.ContainsKey(albumKey))
@@ -203,8 +238,9 @@ namespace Cajonic.Services
                         artistToReturn.ArtistAlbums.TryAdd(albumKey, existingArtist.ArtistAlbums[albumKey]);
                         foreach (CD cd in existingArtist.ArtistAlbums[albumKey].CDs.Values)
                         {
-                            artistToReturn.ArtistAlbums[albumKey].CDs.TryAdd(cd.SongCollection.FirstOrDefault().Value.DiscNumber ??
-                                                                             artistToReturn.ArtistAlbums[albumKey].CDs.Count, cd);
+                            artistToReturn.ArtistAlbums[albumKey].CDs.TryAdd(
+                                cd.SongCollection.FirstOrDefault().Value.DiscNumber ??
+                                artistToReturn.ArtistAlbums[albumKey].CDs.Count, cd);
                         }
                     }
 
@@ -226,9 +262,11 @@ namespace Cajonic.Services
                             }
                             else
                             {
-                                @return.ArtistAlbums[albumKey].CDs.FirstOrDefault(x => x.Key == song.DiscNumber.Value).Value
+                                @return.ArtistAlbums[albumKey].CDs.FirstOrDefault(x => x.Key == song.DiscNumber.Value)
+                                    .Value
                                     .SongCollection.TryAdd(song.TrackNumber.Value, song);
                             }
+
                             song.Album = @return.ArtistAlbums[albumKey];
                             song.Artist = @return;
                         }
@@ -248,9 +286,10 @@ namespace Cajonic.Services
                         }
                     });
                 }
+
                 artistToReturn.IsSerialization = true;
                 mergedArtists.TryAdd(artistToReturn);
-            }
+            });
 
             return mergedArtists;
         }
