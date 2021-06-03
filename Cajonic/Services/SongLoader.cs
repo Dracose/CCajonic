@@ -18,6 +18,7 @@ namespace Cajonic.Services
             ConcurrentBag<Artist> originalArtistBag = new(artists);
             ConcurrentDictionary<string, Artist> concurrentArtistsDictionary =
                 new(StringComparer.InvariantCultureIgnoreCase);
+            ConcurrentBag<string> filesToRedo = new();
 
             ConcurrentBag<FileInfo> files = new();
             Parallel.ForEach(paths, path =>
@@ -53,6 +54,7 @@ namespace Cajonic.Services
                 }
 
                 Track track = new(file.FullName);
+
                 Artist concurrentArtist = new(track);
 
                 if (!concurrentArtistsDictionary.ContainsKey(concurrentArtist.BinaryFilePath))
@@ -89,9 +91,16 @@ namespace Cajonic.Services
                     ? concurrentArtist.ArtistAlbums[Album.UnknownAlbum]
                     : concurrentArtist.ArtistAlbums.Values.FirstOrDefault(x =>
                         string.Equals(x.Title, track.Album, StringComparison.InvariantCultureIgnoreCase));
+                if (relevantAlbum == null)
+                {
+                    filesToRedo.Add(file.FullName);
+                    return;
+                }
+
                 AddSongs(concurrentArtist, track, relevantAlbum);
             });
 
+            RedoAdding(filesToRedo, concurrentArtistsDictionary);
 
             modifiedArtists.AddRange(concurrentArtistsDictionary.Values);
             modifiedArtists = new ConcurrentBag<Artist>(MergeArtists(modifiedArtists, originalArtistBag));
@@ -112,6 +121,58 @@ namespace Cajonic.Services
                 .ThenBy(x => x.TrackNumber).ToImmutableList();
 
             return songsToReturn;
+        }
+
+        private static void RedoAdding(ConcurrentBag<string> filesToRedo, ConcurrentDictionary<string, Artist> concurrentArtistsDictionary)
+        {
+            Parallel.ForEach(filesToRedo, file =>
+            {
+                Track track = new(file);
+
+                Artist concurrentArtist = new(track);
+
+                if (!concurrentArtistsDictionary.ContainsKey(concurrentArtist.BinaryFilePath))
+                {
+                    concurrentArtistsDictionary.TryAdd(concurrentArtist.BinaryFilePath, concurrentArtist);
+                    concurrentArtist = concurrentArtistsDictionary[concurrentArtist.BinaryFilePath];
+                }
+                else
+                {
+                    concurrentArtist = concurrentArtistsDictionary[concurrentArtist.BinaryFilePath];
+                    if (string.IsNullOrEmpty(track.Album) &&
+                        !concurrentArtist.ArtistAlbums.ContainsKey(Album.UnknownAlbum))
+                    {
+                        Album unknownAlbum = new(track, concurrentArtist.Name);
+                        concurrentArtist.ArtistAlbums.TryAdd(unknownAlbum.Title, unknownAlbum);
+                    }
+
+                    else if (!string.IsNullOrEmpty(track.Album) &&
+                             !concurrentArtist.ArtistAlbums.ContainsKey(track.Album))
+                    {
+                        Album newAlbum = new(track, concurrentArtist.Name);
+                        concurrentArtist.ArtistAlbums.TryAdd(track.Album, newAlbum);
+                    }
+
+                    if (track.DiscNumber > 0 &&
+                        !concurrentArtist.ArtistAlbums[track.Album].CDs.ContainsKey(track.DiscNumber))
+                    {
+                        CD newCd = new(track);
+                        concurrentArtist.ArtistAlbums[track.Album].CDs.TryAdd(track.DiscNumber, newCd);
+                    }
+                }
+
+                Album relevantAlbum = string.IsNullOrEmpty(track.Album)
+                    ? concurrentArtist.ArtistAlbums[Album.UnknownAlbum]
+                    : concurrentArtist.ArtistAlbums.Values.FirstOrDefault(x =>
+                        string.Equals(x.Title, track.Album, StringComparison.InvariantCultureIgnoreCase));
+                if (relevantAlbum == null)
+                {
+                    filesToRedo.Add(file);
+                    return;
+                }
+
+                AddSongs(concurrentArtist, track, relevantAlbum);
+            });
         }
 
         private static void AddSongs(Artist artist, Track track, Album relevantAlbum)
@@ -178,7 +239,8 @@ namespace Cajonic.Services
             }
         }
 
-        private static ConcurrentSet<Artist> MergeArtists(ConcurrentBag<Artist> modifiedArtists, ConcurrentBag<Artist> artists)
+        private static ConcurrentSet<Artist> MergeArtists(ConcurrentBag<Artist> modifiedArtists,
+            ConcurrentBag<Artist> artists)
         {
             ConcurrentSet<Artist> mergedArtists = new();
             ConcurrentBag<Artist> artistsToModify = new(modifiedArtists.Where(x => x.IsToModify));

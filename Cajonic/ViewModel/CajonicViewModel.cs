@@ -43,12 +43,12 @@ namespace Cajonic.ViewModel
         public ICommand FastForwardCommand { get; }
         public ICommand RewindCommand { get; }
         public ICommand SortGrid { get; }
-        
+
         public string OpenFileText { get; }
-        
+
         public static bool IsOpenFileVisible => RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ||
                                                 RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
-        
+
         public ICommand OpenFile { get; }
         public ICommand EditSong { get; }
         public ICommand DeleteSong { get; }
@@ -84,7 +84,7 @@ namespace Cajonic.ViewModel
             {
                 Interval = 1
             };
-            
+
             mFindSongEnd.Elapsed += (_, _) =>
             {
                 Application.Current.Dispatcher.Invoke(() =>
@@ -120,11 +120,11 @@ namespace Cajonic.ViewModel
             SortGrid = new RelayCommand(SortGridAction, true);
             SelectedItemsChangedCommand = new RelayCommand(SelectedItemsChanged, true);
             PlayPauseStopLastNext = new RelayCommand(PlayPauseStopLastNextAction, true);
-            OpenFile = new CommandHandler(OpenInExplorerAction, () => 
+            OpenFile = new CommandHandler(OpenInExplorerAction, () =>
                 mSelectedSongs.Count == 1 && SelectedSong != null && IsOpenFileVisible);
             DeleteSong = new CommandHandler(DeleteSongFromLibraryAction, () => true);
-            EditSong = new CommandHandler(ShowEditWindowAction, () => true);  
-            PlaySong = new CommandHandler(PlaySongAction, () => mSelectedSongs.Count == 1 && mSelectedSong != null || 
+            EditSong = new CommandHandler(ShowEditWindowAction, () => true);
+            PlaySong = new CommandHandler(PlaySongAction, () => mSelectedSongs.Count == 1 && mSelectedSong != null ||
                                                                 mSelectedSongs.Count == 0 && mSelectedSong != null);
             PauseSong = new CommandHandler(PauseSongAction, () => true);
             StopSong = new CommandHandler(StopSongAction, () => true);
@@ -167,9 +167,9 @@ namespace Cajonic.ViewModel
         // public string QueueFilePath { get; set; }
 
         public bool IsSongPlaying => PlayingSong != null;
-        
+
         public ConcurrentObservableCollection<Song> SongList { get; set; } = new();
-        
+
         private ConcurrentObservableCollection<Artist> Artists { get; set; } = new();
 
         private ConcurrentObservableCollection<Album> Albums { get; set; } = new();
@@ -195,7 +195,8 @@ namespace Cajonic.ViewModel
                 : string.Empty;
 
         public string TrackTitleInfo =>
-            PlayingSong != null ? PlayingSong.TrackNumber == null
+            PlayingSong != null
+                ? PlayingSong.TrackNumber == null
                     ? PlayingSong.Title
                     : PlayingSong.TrackNumber + ". " + PlayingSong.Title
                 : string.Empty;
@@ -224,26 +225,25 @@ namespace Cajonic.ViewModel
         private void SelectedItemsChanged(object parameter)
         {
             mSelectedSongs.Clear();
-            
-            if (parameter != null) 
+
+            if (parameter != null)
             {
-                foreach (Song item in (IList)parameter)
+                foreach (Song item in (IList) parameter)
                 {
                     mSelectedSongs.Add(item);
                 }
             }
-        
+
             OnPropertyChanged(nameof(mSelectedSongs));
         }
 
         private void PlaySongAction(object parameter)
         {
             MouseButtonEventArgs eventArgs = (MouseButtonEventArgs) parameter;
-            if (((FrameworkElement) eventArgs.OriginalSource).DataContext is Song) 
+            if (((FrameworkElement) eventArgs.OriginalSource).DataContext is Song)
             {
                 PlaySongAction();
             }
-            
         }
 
         private void SortGridAction(object parameter)
@@ -275,18 +275,19 @@ namespace Cajonic.ViewModel
                 }
             }
 
-            Task task = new (() =>
+            Task task = new(() =>
             {
-                IEnumerable<Song> something = direction == ListSortDirection.Ascending ?
-                    SongList.OrderBy(headerClicked) : SongList.OrderByDescending(headerClicked);
+                IEnumerable<Song> something = direction == ListSortDirection.Ascending
+                    ? SongList.OrderBy(headerClicked)
+                    : SongList.OrderByDescending(headerClicked);
 
                 SongList = new ConcurrentObservableCollection<Song>();
-                
+
                 SongList.AddUniqueRange(something);
 
                 OnPropertyChanged(nameof(SongList));
             });
-            
+
             task.Start();
 
             mLastHeaderClicked = headerClicked;
@@ -393,15 +394,18 @@ namespace Cajonic.ViewModel
                 {
                     StopSongAction();
                 }
-                
+
                 artistsToRemove.Add(song.Artist);
                 SongList.Remove(song);
                 if (song.DiscNumber.HasValue)
                 {
                     if (song.TrackNumber.HasValue)
                     {
-                        song.Album.CDs[song.DiscNumber.Value].SongCollection
-                            .TryRemove(song.TrackNumber.Value, out Song _);
+                        if (song.Album.CDs.ContainsKey(song.DiscNumber.Value))
+                        {
+                            song.Album.CDs[song.DiscNumber.Value].SongCollection
+                                .TryRemove(song.TrackNumber.Value, out Song _);
+                        }
                     }
                     else
                     {
@@ -421,7 +425,7 @@ namespace Cajonic.ViewModel
                         song.Album.UnlistedSongs.TryRemove(song);
                     }
                 }
-                
+
                 foreach (Album irrelevantAlbum in song.Artist.ArtistAlbums.Values.Where(x => x.AllSongs.IsEmpty))
                 {
                     song.Artist.ArtistAlbums.Remove(irrelevantAlbum.Title, out Album removedAlbum);
@@ -440,7 +444,7 @@ namespace Cajonic.ViewModel
 
             foreach (Artist artist in artistsToRemove)
             {
-                if (artist.ArtistAlbums.Count == 0 || 
+                if (artist.ArtistAlbums.Count == 0 ||
                     artist.ArtistAlbums.Values.Count(x => x.AllSongs.IsEmpty) == artist.ArtistAlbums.Count)
                 {
                     Artists.Remove(artist);
@@ -452,15 +456,15 @@ namespace Cajonic.ViewModel
                 }
             }
         }
-        
-             
+
+
         private void OpenInExplorerAction()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 OpenInExplorer.OpenInOsxFileExplorer(SelectedSong.FilePath);
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) 
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 OpenInExplorer.OpenInWindowsFileExplorer(SelectedSong.FilePath);
             }
@@ -479,7 +483,7 @@ namespace Cajonic.ViewModel
 
                 PlayingSong = SelectedSong;
                 mPlayingIndex = SelectedIndex;
-                
+
                 mMusicPlayer.Play(new Uri(PlayingSong.FilePath));
                 StartTimers();
             }
@@ -488,6 +492,7 @@ namespace Cajonic.ViewModel
                 mPlayer.Play();
                 StartTimers();
             }
+
             OnPropertyChanged(nameof(TrackTitleInfo));
             OnPropertyChanged(nameof(ArtistAlbumInfo));
             OnPropertyChanged(nameof(ElapsedTime));
@@ -514,7 +519,7 @@ namespace Cajonic.ViewModel
             ElapsedTime = BasicElapsedTime;
             PlayingProgress = 0;
             mSeconds = 0;
-            
+
             OnPropertyChanged(nameof(TrackTitleInfo));
             OnPropertyChanged(nameof(ArtistAlbumInfo));
             OnPropertyChanged(nameof(PlayingSong));
@@ -600,7 +605,7 @@ namespace Cajonic.ViewModel
                 }
             }
         }
-        
+
         private void PlayPauseStopLastNextAction(object parameter)
         {
             KeyEventArgs keyEventArgs = (KeyEventArgs) parameter;
@@ -629,10 +634,10 @@ namespace Cajonic.ViewModel
                 if (PlayingSong != null)
                 {
                     int index = SongList.IndexOf(PlayingSong);
-                    if (SongList.Count > index +1)
+                    if (SongList.Count > index + 1)
                     {
                         StopSongAction();
-                        SelectedSong = SongList[index +1];
+                        SelectedSong = SongList[index + 1];
                         PlaySongAction();
                         return;
                     }
@@ -649,17 +654,17 @@ namespace Cajonic.ViewModel
                 if (PlayingSong != null)
                 {
                     int index = SongList.IndexOf(PlayingSong);
-                    
+
                     if (index == 0)
                     {
                         StopSongAction();
                         return;
                     }
-                    
-                    if (SongList.Count >= index +1)
+
+                    if (SongList.Count >= index + 1)
                     {
                         StopSongAction();
-                        SelectedSong = SongList[index -1];
+                        SelectedSong = SongList[index - 1];
                         PlaySongAction();
                         return;
                     }
@@ -722,7 +727,7 @@ namespace Cajonic.ViewModel
         {
             return Player.Position >= Player.NaturalDuration;
         }
-        
+
         // private double TotalSeconds()
         // {
         //     return SongList.Sum(s => s.Duration.TotalSeconds);
@@ -739,38 +744,35 @@ namespace Cajonic.ViewModel
             };
 
             EditViewModel viewModel;
-            
+
             if (mSelectedSongs.Count > 1)
             {
-                viewModel = new EditSongsViewModel(mSelectedSongs, SongList, Artists, Albums, () =>
-                {
-                    win.Close();
-                }, () =>
-                {
-                    SortGridAction("ArtistName");
-                    OnPropertyChanged(nameof(TrackTitleInfo));
-                    OnPropertyChanged(nameof(ArtistAlbumInfo));
-                });
+                viewModel = new EditSongsViewModel(mSelectedSongs, SongList, Artists, Albums, () => { win.Close(); },
+                    () =>
+                    {
+                        SortGridAction("ArtistName");
+                        OnPropertyChanged(nameof(TrackTitleInfo));
+                        OnPropertyChanged(nameof(ArtistAlbumInfo));
+                    });
                 win.Height = 370;
                 win.Content = viewModel;
                 win.Title = "Edit Multiple Songs";
             }
             else if (mSelectedSongs.Count == 1 && SelectedSong != null)
             {
-                viewModel = new EditSongViewModel(mSelectedSongs, SongList, Artists, Albums, () =>
-                {
-                    win.Close();
-                }, () =>
-                {
-                    SortGridAction("ArtistName");
-                    OnPropertyChanged(nameof(TrackTitleInfo));
-                    OnPropertyChanged(nameof(ArtistAlbumInfo));
-                });
+                viewModel = new EditSongViewModel(mSelectedSongs, SongList, Artists, Albums, () => { win.Close(); },
+                    () =>
+                    {
+                        SortGridAction("ArtistName");
+                        OnPropertyChanged(nameof(TrackTitleInfo));
+                        OnPropertyChanged(nameof(ArtistAlbumInfo));
+                    });
 
                 win.Content = viewModel;
                 win.Height = 400;
-                win.Title = string.IsNullOrEmpty(SelectedSong.Title) ?
-                    "Edit Song" : "Edit \"" + SelectedSong.Title + "\"";
+                win.Title = string.IsNullOrEmpty(SelectedSong.Title)
+                    ? "Edit Song"
+                    : "Edit \"" + SelectedSong.Title + "\"";
             }
 
             win.ShowDialog();

@@ -32,6 +32,8 @@
         </Grid.RowDefinitions>
         
         <ListView Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="Songs" BorderThickness="2"
+                  ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                  Width="1150"
                   ItemsSource="{Binding SongList.AsObservable}"
                   SelectedItem="{Binding SelectedSong}"
                   SelectedIndex="{Binding SelectedIndex, UpdateSourceTrigger=PropertyChanged}" SelectionMode="Extended">
