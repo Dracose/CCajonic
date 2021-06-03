@@ -277,8 +277,8 @@ namespace Cajonic.ViewModel
 
             Task task = new (() =>
             {
-                IEnumerable<Song> something = (direction == ListSortDirection.Ascending ? 
-                    SongList.OrderBy(headerClicked) : SongList.OrderByDescending(headerClicked));
+                IEnumerable<Song> something = direction == ListSortDirection.Ascending ?
+                    SongList.OrderBy(headerClicked) : SongList.OrderByDescending(headerClicked);
 
                 SongList = new ConcurrentObservableCollection<Song>();
                 

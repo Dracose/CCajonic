@@ -17,14 +17,16 @@ namespace Cajonic.Services
             }
         }
 
+        // ReSharper disable CommentTypo
+        //Todo : Make "ThenBy" function more flexible (e.g. property = ArtistName; then by albumtitle, tracknumber, etc...)
         public static IEnumerable<T> OrderBy<T>(this ConcurrentObservableCollection<T> enumerable, string property)
         {
-            return enumerable.OrderBy(x => GetProperty(x, property));
+            return enumerable.OrderBy(x => GetProperty(x, property)).ThenBy(x => GetProperty(x, "TrackNumber"));
         }
         
         public static IEnumerable<T> OrderByDescending<T>(this ConcurrentObservableCollection<T> enumerable, string property)
         {
-            return enumerable.OrderByDescending(x => GetProperty(x, property));
+            return enumerable.OrderByDescending(x => GetProperty(x, property)).ThenBy(x => GetProperty(x, "TrackNumber"));
         }
 	
         private static object GetProperty(object o, string propertyName)
