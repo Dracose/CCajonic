@@ -2,6 +2,6 @@
 {
     public interface IFileDragDropTarget
     {
-        void OnFileDrop(string[] filepaths);
+        void OnFileDrop(string[] filePaths);
     }
 }

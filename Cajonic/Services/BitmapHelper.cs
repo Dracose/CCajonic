@@ -81,7 +81,7 @@ namespace Cajonic.Services
             return ms.ToArray();
         }
 
-        public static BitmapImage ResizeImage(System.Drawing.Image image, int width, int height)
+        public static BitmapImage ResizeImage(Image image, int width, int height)
         {
             Rectangle destRect = new(0, 0, width, height);
             Bitmap destImage = new(width, height);

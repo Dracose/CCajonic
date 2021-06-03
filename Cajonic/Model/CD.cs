@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Windows.Media.Imaging;
 using ATL;
+using Cajonic.Services;
 using ProtoBuf;
 
 namespace Cajonic.Model

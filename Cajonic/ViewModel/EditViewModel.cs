@@ -42,12 +42,16 @@ namespace Cajonic.ViewModel
         private readonly ConcurrentObservableCollection<Artist> mArtists;
         private readonly ConcurrentObservableCollection<Album> mAlbums;
         private readonly Action mCloseWindow;
+        private readonly Action mUpdateList;
+
+        private bool HasBeenEdited;
 
         protected EditViewModel(ConcurrentObservableCollection<Song> songs,
             ConcurrentObservableCollection<Song> allSongs,
             ConcurrentObservableCollection<Artist> artists,
-            ConcurrentObservableCollection<Album> albums, Action closeWindow)
+            ConcurrentObservableCollection<Album> albums, Action closeWindow, Action updateList)
         {
+            mUpdateList = updateList;
             mSelectedSongs = songs;
             mAllSongs = allSongs;
 
@@ -71,7 +75,7 @@ namespace Cajonic.ViewModel
         protected void Ok()
         {
             Mouse.OverrideCursor = Cursors.Wait;
-
+            
             foreach (Song song in mAllSongs.Where(x => mSelectedSongs.Contains(x)))
             {
                 Song songToCopy = new()
@@ -107,8 +111,12 @@ namespace Cajonic.ViewModel
 
                 (Album newAlbum, Artist newArtist) = GetNewAlbumAndArtist(songToCopy);
 
-                song.EditSong(songToCopy, newArtist, newAlbum, mAlbums, mArtists);
+                if (!song.EditSong(songToCopy, newArtist, newAlbum, mAlbums, mArtists))
+                {
+                    continue;
+                }
 
+                HasBeenEdited = true;
                 int relevantIndex = mAllSongs.IndexOf(song);
                 mAllSongs.Remove(mAllSongs.First(x => x == song));
                 mAllSongs.Insert(relevantIndex, song);
@@ -155,6 +163,12 @@ namespace Cajonic.ViewModel
                 mArtists.Remove(artist);
             }
 
+            
+            if (HasBeenEdited)
+            {
+                mUpdateList.Invoke();
+            }
+            
             Mouse.OverrideCursor = Cursors.Arrow;
             mCloseWindow.Invoke();
         }

@@ -16,7 +16,7 @@ namespace Cajonic.Services
         public static async Task<T> ReadFromBinaryFile<T>(string filePath)
         {
             await using Stream stream = File.Open(filePath, FileMode.Open);
-            return (T)Serializer.Deserialize<T>(stream);
+            return Serializer.Deserialize<T>(stream);
         }
 
         public static Task DestroyBinaryFile(string filePath)

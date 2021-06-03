@@ -12,7 +12,6 @@ using ProtoBuf;
 
 namespace Cajonic.Model
 {
-    //TODO : DON'T FORGET TO GET THE ALBUM ARTWORK BACK
     [ProtoContract]
     public class Artist : IEquatable<Artist>
     {

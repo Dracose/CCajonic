@@ -23,8 +23,8 @@ namespace Cajonic.ViewModel
 
         public EditSongsViewModel(ConcurrentObservableCollection<Song> songs,
             ConcurrentObservableCollection<Song> allSongs, ConcurrentObservableCollection<Artist> artists,
-            ConcurrentObservableCollection<Album> albums, Action closeWindow) : base(songs, allSongs, artists, albums,
-            closeWindow)
+            ConcurrentObservableCollection<Album> albums, Action closeWindow, Action updateList) : base(songs, allSongs, artists, albums,
+            closeWindow, updateList)
         {
             mOriginalDisplayYear = !songs.Select(x => x.Year).Distinct().Skip(1).Any()
                 ? songs.Select(x => x.Year).First().ToString()

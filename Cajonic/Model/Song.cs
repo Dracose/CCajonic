@@ -70,11 +70,11 @@ namespace Cajonic.Model
             private set => mFilePath = value;
         }
 
-        public void EditSong(Song toCopy, Artist newArtist, Album newAlbum, 
+        public bool EditSong(Song toCopy, Artist newArtist, Album newAlbum, 
             ConcurrentObservableCollection<Album> albums, ConcurrentObservableCollection<Artist> artists)
         {
-            bool trackIsDifferent = Title != toCopy.Title || Year != toCopy.Year || AlbumArtist != toCopy.AlbumArtist ||
-                                    Genre != toCopy.Genre || DiscNumber != toCopy.DiscNumber ||
+            bool trackIsDifferent = Title != toCopy.Title || Year != toCopy.Year || AlbumArtist != (toCopy.AlbumArtist ?? string.Empty) ||
+                                    Genre != (toCopy.Genre ?? string.Empty) || DiscNumber != toCopy.DiscNumber ||
                                     !ArtistName.Equals(toCopy.ArtistName,
                                         StringComparison.InvariantCultureIgnoreCase) ||
                                     !AlbumTitle.Equals(toCopy.AlbumTitle,
@@ -83,7 +83,7 @@ namespace Cajonic.Model
 
             if (!trackIsDifferent)
             {
-                return;
+                return false;
             }
 
             Title = toCopy.Title;
@@ -154,6 +154,7 @@ namespace Cajonic.Model
             originalArtist.IsSerialization = true;
 
             Artist.IsSerialization = true;
+            return true;
         }
         
         private void UnlistSong(Song toGetToUnlisted)

@@ -20,7 +20,7 @@ namespace Cajonic.Services
             return list;
         }
 
-        public static ICollection<Artist> ReplaceRangeArtists(this ICollection<Artist> list, IEnumerable<Artist> toAdd)
+        public static void ReplaceRangeArtists(this ICollection<Artist> list, IEnumerable<Artist> toAdd)
         {
             foreach (Artist element in toAdd.Where(x => x.IsSerialization))
             {
@@ -33,24 +33,6 @@ namespace Cajonic.Services
                 {
                     list.Add(element);
                 }
-            }
-            return list;
-        }
-
-        public static void AddUnique<T>(this List<T> list, T toAdd)
-        {
-            if (!list.Contains(toAdd))
-            {
-                list.Add(toAdd);
-            }
-        }
-
-        public static void AddUniqueArtist(this List<Artist> list, Artist toAdd)
-        {
-            List<string> titles = list.SelectMany(x => x.ArtistAlbums).Select(z => z.Value.Title).ToList();
-            if (!list.Contains(toAdd) && !titles.Contains(toAdd.ArtistAlbums.SelectMany(x => x.Value.Title)))
-            {
-                list.Add(toAdd);
             }
         }
     }

@@ -12,8 +12,8 @@ namespace Cajonic.ViewModel
     {
         public EditSongViewModel(ConcurrentObservableCollection<Song> songs,
             ConcurrentObservableCollection<Song> allSongs, ConcurrentObservableCollection<Artist> artists,
-            ConcurrentObservableCollection<Album> albums, Action closeWindow) : base(songs, allSongs, artists, albums,
-            closeWindow)
+            ConcurrentObservableCollection<Album> albums, Action closeWindow, Action updateList) : base(songs, allSongs, artists, albums,
+            closeWindow, updateList)
         {
             OkButton = new CommandHandler(Ok, () => true);
             CancelButton = new CommandHandler(Cancel, () => true);

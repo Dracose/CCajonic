@@ -13,4 +13,7 @@
     <PackageReference Include="System.Drawing.Common" Version="5.0.2" />
     <PackageReference Include="z440.atl.core" Version="3.22.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Services\Wrappers" />
+  </ItemGroup>
 </Project>

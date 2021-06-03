@@ -40,7 +40,7 @@ namespace Cajonic.Services
 
         private static void OnDrop(object sender, DragEventArgs dragEventArgs)
         {
-            if (!(sender is DependencyObject d))
+            if (sender is not DependencyObject d)
             {
                 return;
             }
