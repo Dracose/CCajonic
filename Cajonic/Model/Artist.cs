@@ -87,33 +87,12 @@ namespace Cajonic.Model
             }
 
             ImmutableList<Song> allAlbumSongs = taskArtist.Result.ArtistAlbums.
-                SelectMany(x => x.Value.AlbumSongCollection.Values).ToImmutableList();
-
-            ImmutableList<Song> allCdSongs = taskArtist.Result.ArtistAlbums.
-                SelectMany(x => x.Value.CDs.Values).
-                SelectMany(x => x.SongCollection.Values).ToImmutableList();
+                SelectMany(x => x.Value.AllSongs).ToImmutableList();
 
             foreach (Song song in allAlbumSongs)
             {
                 song.Artist = this;
-                song.Album = taskArtist.Result.ArtistAlbums.FirstOrDefault(x => x.Value.AlbumSongCollection.Values.Contains(song)).Value;
-            }
-
-            foreach (Song song in allCdSongs)
-            {
-                song.Artist = this;
-                song.Album = taskArtist.Result.ArtistAlbums
-                    .FirstOrDefault(x => x.Value.CDs
-                        .SelectMany(x => x.Value.SongCollection)
-                        .Select(x => x.Value.FilePath)
-                        .Contains(song.FilePath)).Value;
-            }
-
-            foreach (Song song in taskArtist.Result.ArtistAlbums.Values.SelectMany(x => x.UnlistedSongs))
-            {
-                song.Artist = this;
-                song.Album = taskArtist.Result.ArtistAlbums.Values.FirstOrDefault(x =>
-                    x.UnlistedSongs.Select(x => x.FilePath).Contains(song.FilePath));
+                song.Album = taskArtist.Result.ArtistAlbums.FirstOrDefault(x => x.Value.AllSongs.Contains(song)).Value;
             }
 
             ArtistAlbums = taskArtist.Result.ArtistAlbums;

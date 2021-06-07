@@ -88,7 +88,9 @@ namespace Cajonic.Model
             {
                 if (HasCDs)
                 {
-                    return AlbumSongCollection.Values.Concat(CDs.Values.SelectMany(x => x.SongCollection.Values)).Concat(UnlistedSongs)
+                    return AlbumSongCollection.Values
+                        .Concat(CDs.Values.SelectMany(x => x.SongCollection.Values).Concat(CDs.Values.SelectMany(x => x.UnlistedSongs)))
+                        .Concat(UnlistedSongs)
                         .ToImmutableList();
                 }
 

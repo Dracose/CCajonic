@@ -131,13 +131,13 @@ namespace Cajonic.Model
                 albums.Remove(removedAlbum);
             }
 
-            foreach (Album irrelevantAlbum in originalArtist.ArtistAlbums.Values.Where(x => x.AllSongs.IsEmpty))
+            foreach (Album irrelevantAlbum in Artist.ArtistAlbums.Values.Where(x => x.AllSongs.IsEmpty))
             {
-                originalArtist.ArtistAlbums.Remove(irrelevantAlbum.Title, out Album _);
-                if (originalArtist.ArtistAlbums.Count == 0 ||
-                    originalArtist.ArtistAlbums.Values.Count(x => x.AllSongs.IsEmpty) == originalArtist.ArtistAlbums.Count)
+                Artist.ArtistAlbums.Remove(irrelevantAlbum.Title, out Album _);
+                if (Artist.ArtistAlbums.Count == 0 ||
+                    Artist.ArtistAlbums.Values.Count(x => x.AllSongs.IsEmpty) == originalArtist.ArtistAlbums.Count)
                 {
-                    originalArtist.IsDestruction = true;
+                    Artist.IsDestruction = true;
                 }
             }
 

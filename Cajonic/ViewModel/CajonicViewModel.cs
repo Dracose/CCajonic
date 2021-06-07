@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using Cajonic.Services;
 using Cajonic.Model;
@@ -160,6 +161,7 @@ namespace Cajonic.ViewModel
                     }
 
                     SongList.AddUniqueRange(album.AllSongs);
+                    SortGridAction(null);
                 }
             }
         }
@@ -260,7 +262,7 @@ namespace Cajonic.ViewModel
                 _ => headerClicked
             };
 
-            if (headerClicked != mLastHeaderClicked)
+            if (headerClicked != mLastHeaderClicked || headerClicked == null)
             {
                 direction = ListSortDirection.Ascending;
             }
@@ -269,29 +271,46 @@ namespace Cajonic.ViewModel
                 direction = mLastDirection == ListSortDirection.Ascending
                     ? ListSortDirection.Descending
                     : ListSortDirection.Ascending;
-                if ((string) parameter == "ArtistName")
-                {
-                    direction = ListSortDirection.Ascending;
-                }
             }
 
-            Task task = new(() =>
+            Task task;
+
+            if (string.IsNullOrEmpty(headerClicked))
             {
-                IEnumerable<Song> something = direction == ListSortDirection.Ascending
-                    ? SongList.OrderBy(headerClicked)
-                    : SongList.OrderByDescending(headerClicked);
+                task = new(() =>
+                {
+                    IEnumerable<Song> newList = SongList.OrderBy(x => x.ArtistName)
+                        .ThenBy(x => x.AlbumTitle)
+                        .ThenBy(x => x.DiscNumber)
+                        .ThenBy(x => x.TrackNumber).ToImmutableList();
 
-                SongList = new ConcurrentObservableCollection<Song>();
+                    SongList = new ConcurrentObservableCollection<Song>();
 
-                SongList.AddUniqueRange(something);
+                    SongList.AddUniqueRange(newList);
 
-                OnPropertyChanged(nameof(SongList));
-            });
+                    OnPropertyChanged(nameof(SongList));
+                });
+            }
+            else
+            {
+                task = new(() =>
+                {
+                    IEnumerable<Song> newList = direction == ListSortDirection.Ascending
+                        ? SongList.OrderBy(headerClicked)
+                        : SongList.OrderByDescending(headerClicked);
+
+                    SongList = new ConcurrentObservableCollection<Song>();
+
+                    SongList.AddUniqueRange(newList);
+
+                    OnPropertyChanged(nameof(SongList));
+
+                    mLastHeaderClicked = headerClicked;
+                    mLastDirection = direction;
+                });
+            }
 
             task.Start();
-
-            mLastHeaderClicked = headerClicked;
-            mLastDirection = direction;
         }
 
         private Song mPlayingSong;
@@ -750,7 +769,8 @@ namespace Cajonic.ViewModel
                 viewModel = new EditSongsViewModel(mSelectedSongs, SongList, Artists, Albums, () => { win.Close(); },
                     () =>
                     {
-                        SortGridAction("ArtistName");
+                        SortGridAction(null);
+                        UpdateCollections();
                         OnPropertyChanged(nameof(TrackTitleInfo));
                         OnPropertyChanged(nameof(ArtistAlbumInfo));
                     });
@@ -763,7 +783,9 @@ namespace Cajonic.ViewModel
                 viewModel = new EditSongViewModel(mSelectedSongs, SongList, Artists, Albums, () => { win.Close(); },
                     () =>
                     {
-                        SortGridAction("ArtistName");
+                        SortGridAction(null);
+
+                        UpdateCollections();
                         OnPropertyChanged(nameof(TrackTitleInfo));
                         OnPropertyChanged(nameof(ArtistAlbumInfo));
                     });
@@ -776,6 +798,20 @@ namespace Cajonic.ViewModel
             }
 
             win.ShowDialog();
+        }
+
+        private Task UpdateCollections()
+        {
+            return Task.Run(() =>
+            {
+                ImmutableList<Artist> newArtists = SongList.Select(x => x.Artist).ToImmutableList();
+                Artists.Clear();
+                Artists.AddUniqueRange(newArtists);
+
+                ImmutableList<Album> newAlbums = SongList.Select(x => x.Album).ToImmutableList();
+                Albums.Clear();
+                Albums.AddUniqueRange(newAlbums);
+            });
         }
     }
 }
