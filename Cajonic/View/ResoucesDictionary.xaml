@@ -1,0 +1,344 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:viewModel="clr-namespace:Cajonic.ViewModel"
+                    xmlns:b="http://schemas.microsoft.com/xaml/behaviors">
+    
+    <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        
+    <DrawingImage x:Key="GreenCheckmarkDrawingImage">
+        <DrawingImage.Drawing>
+            <DrawingGroup ClipGeometry="M0,0 V64 H64 V0 H0 Z">
+                <GeometryDrawing Brush="#FF43A047"
+                                 Geometry="F1 M64,64z M0,0z M32,2C15.431,2 2,15.432 2,32 2,48.568 15.432,62 32,62 48.568,62 62,48.568 62,32 62,15.432 48.568,2 
+                                 32,2z M25.025,50L25.005,49.98 24.988,50 11,35.6 18.029,28.436 25.006,35.62 46.006,14.001 53,21.199 25.025,50z" />
+            </DrawingGroup>
+        </DrawingImage.Drawing>
+    </DrawingImage>
+    
+    <Style TargetType="Image">
+        <Setter Property="Source" Value="{StaticResource GreenCheckmarkDrawingImage}"/>
+        <Setter Property="Width" Value="20"/>
+        <Setter Property="Height" Value="20"/>
+    </Style>
+    
+    <ControlTemplate TargetType="TextBox" x:Key="PotentiallyEmptyMixedTemplate">
+        <Grid>
+            <TextBox x:Name="MixedBox"
+                     Width="{Binding Width, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                     IsManipulationEnabled="{Binding IsManipulationEnabled, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
+                     Text="{Binding Text, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="Mixed" Width="50"
+                       Foreground="#FF808080" IsHitTestVisible="False" x:Name="UserMessage" Visibility="Hidden" Margin="7,0,0,9" />
+        </Grid>
+        <ControlTemplate.Triggers>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="Text" Value="" />
+                    <Condition Property="IsKeyboardFocusWithin" Value="False" />
+                    <Condition Property="IsManipulationEnabled" Value="True" />
+                </MultiTrigger.Conditions>
+                <Setter Property="Visibility" TargetName="UserMessage" Value="Visible" />
+            </MultiTrigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    
+    <ControlTemplate TargetType="TextBox" x:Key="DashTemplate">
+        <Grid>
+            <TextBox x:Name="MixedBox" Width="{Binding Width, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                     Text="{Binding Text, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"
+                     IsManipulationEnabled="{Binding IsManipulationEnabled, Mode=TwoWay, 
+                        RelativeSource={RelativeSource TemplatedParent}, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center" Text="-" Width="50"
+                           Foreground="#FF808080" IsHitTestVisible="False" x:Name="UserMessage" Visibility="Hidden" Margin="7,0,0,9" />
+        </Grid>
+        <ControlTemplate.Triggers>
+            <MultiTrigger>
+                <MultiTrigger.Conditions>
+                    <Condition Property="Text" Value="" />
+                    <Condition Property="IsKeyboardFocusWithin" Value="False" />
+                    <Condition Property="IsManipulationEnabled" Value="True" />
+                </MultiTrigger.Conditions>
+                <Setter Property="Visibility" TargetName="UserMessage" Value="Visible" />
+            </MultiTrigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+    
+    <Style TargetType="{x:Type Label}" BasedOn="{StaticResource MahApps.Styles.Label}">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="FontFamily" Value="Lucida Sans" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Width" Value="100"/>
+    </Style>
+
+    <Style TargetType="{x:Type TextBox}" BasedOn="{StaticResource MahApps.Styles.TextBox}">
+        <Setter Property="FontFamily" Value="Lucida Sans" />
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+    <DataTemplate DataType="{x:Type viewModel:EditSongViewModel}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Margin="0,20,0,0" Grid.Row="0" Grid.Column="0" Orientation="Vertical">
+                <Label Content="Song " Margin="0,0,0,12" />
+                <Label Content="Artist " Margin="0,0,0,12" />
+                <Label Content="Album " Margin="0,0,0,12" />
+                <Label Content="Album Artist " Margin="0,0,0,12" />
+                <Label Content="Genre " Margin="0,0,0,12" />
+                <Label Content="Year " Margin="0,0,0,12" />
+                <Label Content="Track " Margin="0,0,0,12" />
+                <Label Content="Disc Number " />
+            </StackPanel>
+
+            <StackPanel Margin="0,20,0,0" Grid.Row="0" Grid.Column="1" Orientation="Vertical">
+                <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" Width="300"/>
+                <TextBox Text="{Binding ArtistName, UpdateSourceTrigger=PropertyChanged}" Width="300"/>
+                <TextBox Text="{Binding AlbumTitle, UpdateSourceTrigger=PropertyChanged}" Width="300"/>
+                <TextBox Text="{Binding AlbumArtist, UpdateSourceTrigger=PropertyChanged}" Width="300"/>
+                <TextBox Text="{Binding Genre, UpdateSourceTrigger=PropertyChanged}" MinWidth="0" Width="150" />
+                <TextBox Text="{Binding DisplayYear, UpdateSourceTrigger=PropertyChanged}" Width="100" />
+                <TextBox Text="{Binding DisplayTrackNumber, UpdateSourceTrigger=PropertyChanged}" Width="100" />
+                <TextBox Text="{Binding DisplayDiscNumber, UpdateSourceTrigger=PropertyChanged}" Width="100" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button Content="OK" Margin="0,0,20,0" Width="30" HorizontalContentAlignment="Center"
+                        Command="{Binding OkButton}" IsDefault="True" />
+                <Button Content="Cancel" Width="100" HorizontalContentAlignment="Center"
+                        Command="{Binding CancelButton}" IsCancel="True" />
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type viewModel:EditSongsViewModel}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            
+            <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,20,0,0" >
+                <Label Content="Artist " Margin="0,0,0,20"/>
+                <TextBox Text="{Binding ArtistName, UpdateSourceTrigger=PropertyChanged}" Width="300"
+                         Name="searchText" HorizontalAlignment="Center"
+                         Template="{StaticResource PotentiallyEmptyMixedTemplate}"
+                         IsManipulationEnabled="{Binding IsMultipleArtists}" >
+                    <b:Interaction.Triggers>
+                        <b:EventTrigger EventName="KeyUp">
+                            <b:InvokeCommandAction Command="{Binding EditedArtistCommand}"
+                                                   PassEventArgsToCommand="True"/>
+                        </b:EventTrigger>
+                    </b:Interaction.Triggers>
+                </TextBox>
+                <Image Visibility="{Binding IsArtistTickVisible,
+                       Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,0,0,20"/>
+            </StackPanel>
+            
+            
+            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" >
+                <Label Content="Album " Margin="0,0,0,20"/>
+                <TextBox Text="{Binding AlbumTitle, UpdateSourceTrigger=PropertyChanged}" Width="300"
+                             Template="{StaticResource PotentiallyEmptyMixedTemplate}"
+                             IsManipulationEnabled="{Binding IsMultipleAlbums}" >
+                        <b:Interaction.Triggers>
+                            <b:EventTrigger EventName="KeyUp">
+                                <b:InvokeCommandAction Command="{Binding EditedAlbumCommand}"
+                                                       PassEventArgsToCommand="True"/>
+                            </b:EventTrigger>
+                        </b:Interaction.Triggers>
+                    </TextBox>
+                <Image Visibility="{Binding IsAlbumTickVisible,
+                       Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,0,0,20"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" >
+                <Label Content="Album Artist " Margin="0,0,0,20" />
+                <TextBox Text="{Binding AlbumArtist, UpdateSourceTrigger=PropertyChanged}" Width="300"
+                         Template="{StaticResource PotentiallyEmptyMixedTemplate}"
+                         IsManipulationEnabled="{Binding IsMultipleAlbumArtists}" >
+                    <b:Interaction.Triggers>
+                        <b:EventTrigger EventName="KeyUp">
+                            <b:InvokeCommandAction Command="{Binding EditedAlbumArtistCommand}"
+                                                   PassEventArgsToCommand="True"/>
+                        </b:EventTrigger>
+                    </b:Interaction.Triggers>
+                </TextBox>
+                <Image Visibility="{Binding IsAlbumArtistTickVisible,
+                       Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,0,0,20"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" >
+                <Label Content="Genre " Margin="0,0,0,20"/>
+                <TextBox Text="{Binding Genre, UpdateSourceTrigger=PropertyChanged}" Width="150"
+                         Template="{StaticResource PotentiallyEmptyMixedTemplate}"
+                         IsManipulationEnabled="{Binding IsMultipleGenres}" >
+                    <b:Interaction.Triggers>
+                        <b:EventTrigger EventName="KeyUp">
+                            <b:InvokeCommandAction Command="{Binding EditedGenreCommand}"
+                                                   PassEventArgsToCommand="True"/>
+                        </b:EventTrigger>
+                    </b:Interaction.Triggers>
+                </TextBox>
+                <Image Visibility="{Binding IsGenreTickVisible,
+                       Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,0,0,20"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" >
+                <Label Content="Year " Margin="0,0,0,20"/>
+                <TextBox Text="{Binding DisplayYear, UpdateSourceTrigger=PropertyChanged}" Width="100"
+                         Template="{StaticResource PotentiallyEmptyMixedTemplate}"
+                         IsManipulationEnabled="{Binding IsMultipleYears}" >
+                    <b:Interaction.Triggers>
+                        <b:EventTrigger EventName="KeyUp">
+                            <b:InvokeCommandAction Command="{Binding EditedYearCommand}"
+                                                   PassEventArgsToCommand="True"/>
+                        </b:EventTrigger>
+                    </b:Interaction.Triggers>
+                </TextBox>
+                <Image Visibility="{Binding IsYearTickVisible,
+                       Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,0,0,20"/>
+            </StackPanel>
+            
+            <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" >
+                <Label Content="Disc Number " Margin="0,0,0,20"/>
+                <TextBox Text="{Binding DisplayDiscNumber, UpdateSourceTrigger=PropertyChanged}" Width="100"
+                         Template="{StaticResource PotentiallyEmptyMixedTemplate}"
+                         IsManipulationEnabled="{Binding IsMultipleDiscs}" >
+                    <b:Interaction.Triggers>
+                        <b:EventTrigger EventName="KeyUp">
+                            <b:InvokeCommandAction Command="{Binding EditedDiscsCommand}"
+                                                   PassEventArgsToCommand="True"/>
+                        </b:EventTrigger>
+                    </b:Interaction.Triggers>
+                </TextBox>
+                <Image Visibility="{Binding IsDiscTickVisible,
+                       Converter={StaticResource BooleanToVisibilityConverter}}"
+                       Margin="0,0,0,20"/>
+            </StackPanel>
+            
+            <!-- <StackPanel Margin="0,20,0,0" Grid.Row="0" Grid.Column="0" Orientation="Vertical"> -->
+            <!--     <Label Content="Artist " Margin="0,0,0,22" /> -->
+            <!--     <Label Content="Album " Margin="0,0,0,22" /> -->
+            <!--     <Label Content="Album Artist " Margin="0,0,0,22" /> -->
+            <!--     <Label Content="Genre " Margin="0,0,0,22" /> -->
+            <!--     <Label Content="Year " Margin="0,0,0,22" /> -->
+            <!--     <Label Content="Disc Number " /> -->
+            <!-- </StackPanel> -->
+            <!-- -->
+            <!-- ~1~ Add a little tick when something edited @1@ -->
+            <!-- <StackPanel Margin="0,20,0,0" Grid.Row="0" Grid.Column="1" Orientation="Vertical"> -->
+            <!--     <TextBox Text="{Binding ArtistName, UpdateSourceTrigger=PropertyChanged}" Width="300" -->
+            <!--              Name="searchText" -->
+            <!--              Template="{StaticResource PotentiallyEmptyMixedTemplate}" -->
+            <!--              IsManipulationEnabled="{Binding IsMultipleArtists}" > -->
+            <!--         <b:Interaction.Triggers> -->
+            <!--             <b:EventTrigger EventName="KeyUp"> -->
+            <!--                 <b:InvokeCommandAction Command="{Binding EditedArtistCommand}" -->
+            <!--                                        PassEventArgsToCommand="True"/> -->
+            <!--             </b:EventTrigger> -->
+            <!--         </b:Interaction.Triggers> -->
+            <!--     </TextBox> -->
+            <!--     <TextBox Text="{Binding AlbumTitle, UpdateSourceTrigger=PropertyChanged}" Width="300" -->
+            <!--              Template="{StaticResource PotentiallyEmptyMixedTemplate}" -->
+            <!--              IsManipulationEnabled="{Binding IsMultipleAlbums}" > -->
+            <!--         <b:Interaction.Triggers> -->
+            <!--             <b:EventTrigger EventName="KeyUp"> -->
+            <!--                 <b:InvokeCommandAction Command="{Binding EditedAlbumCommand}" -->
+            <!--                                        PassEventArgsToCommand="True"/> -->
+            <!--             </b:EventTrigger> -->
+            <!--         </b:Interaction.Triggers> -->
+            <!--     </TextBox> -->
+            <!--     <TextBox Text="{Binding AlbumArtist, UpdateSourceTrigger=PropertyChanged}" Width="300" -->
+            <!--              Template="{StaticResource PotentiallyEmptyMixedTemplate}"  -->
+            <!--              IsManipulationEnabled="{Binding IsMultipleAlbumArtists}" > -->
+            <!--         <b:Interaction.Triggers> -->
+            <!--             <b:EventTrigger EventName="KeyUp"> -->
+            <!--                 <b:InvokeCommandAction Command="{Binding EditedAlbumArtistCommand}" -->
+            <!--                                        PassEventArgsToCommand="True"/> -->
+            <!--             </b:EventTrigger> -->
+            <!--         </b:Interaction.Triggers> -->
+            <!--     </TextBox> -->
+            <!--     <TextBox Text="{Binding Genre, UpdateSourceTrigger=PropertyChanged}" Width="150" -->
+            <!--              Template="{StaticResource PotentiallyEmptyMixedTemplate}"  -->
+            <!--              IsManipulationEnabled="{Binding IsMultipleGenres}" > -->
+            <!--         <b:Interaction.Triggers> -->
+            <!--             <b:EventTrigger EventName="KeyUp"> -->
+            <!--                 <b:InvokeCommandAction Command="{Binding EditedGenreCommand}" -->
+            <!--                                        PassEventArgsToCommand="True"/> -->
+            <!--             </b:EventTrigger> -->
+            <!--         </b:Interaction.Triggers> -->
+            <!--     </TextBox> -->
+            <!--     <TextBox Text="{Binding DisplayYear, UpdateSourceTrigger=PropertyChanged}" Width="100" -->
+            <!--              IsManipulationEnabled="{Binding IsMultipleYears}" -->
+            <!--              Template="{StaticResource DashTemplate}" > -->
+            <!--         <b:Interaction.Triggers> -->
+            <!--             <b:EventTrigger EventName="KeyUp"> -->
+            <!--                 <b:InvokeCommandAction Command="{Binding EditedYearCommand}" -->
+            <!--                                        PassEventArgsToCommand="True"/> -->
+            <!--             </b:EventTrigger> -->
+            <!--         </b:Interaction.Triggers> -->
+            <!--     </TextBox> -->
+            <!--     <TextBox Text="{Binding DisplayDiscNumber, UpdateSourceTrigger=PropertyChanged}" Width="100" -->
+            <!--              IsManipulationEnabled="{Binding IsMultipleDiscs}" -->
+            <!--              Template="{StaticResource DashTemplate}" > -->
+            <!--         <b:Interaction.Triggers> -->
+            <!--             <b:EventTrigger EventName="KeyUp"> -->
+            <!--                 <b:InvokeCommandAction Command="{Binding EditedDiscsCommand}" -->
+            <!--                                        PassEventArgsToCommand="True"/> -->
+            <!--             </b:EventTrigger> -->
+            <!--         </b:Interaction.Triggers> -->
+            <!--     </TextBox> -->
+            <!--      -->
+            <!-- </StackPanel> -->
+            <!-- -->
+            <!-- <StackPanel Margin="0,22,0,0" Grid.Row="0" Grid.Column="2" Orientation="Vertical"> -->
+            <!--     <Image Visibility="{Binding IsArtistTickVisible,  -->
+            <!--            Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,26"/> -->
+            <!--     <Image Visibility="{Binding IsAlbumTickVisible,  -->
+            <!--            Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,26"/> -->
+            <!--     <Image Visibility="{Binding IsAlbumArtistTickVisible,  -->
+            <!--            Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,26"/> -->
+            <!--     <Image Visibility="{Binding IsGenreTickVisible,  -->
+            <!--            Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,26"/> -->
+            <!--     <Image Visibility="{Binding IsYearTickVisible,  -->
+            <!--            Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,26"/> -->
+            <!--     <Image Visibility="{Binding IsDiscTickVisible,  -->
+            <!--            Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,26"/> -->
+            <!-- </StackPanel> -->
+
+            <StackPanel Grid.Row="6" Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button Content="OK" Margin="0,0,20,0" Width="30" HorizontalContentAlignment="Center"
+                        Command="{Binding OkButton}" IsDefault="True" />
+                <Button Content="Cancel" Width="100" HorizontalContentAlignment="Center"
+                        Command="{Binding CancelButton}" IsCancel="True" />
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+
+
+</ResourceDictionary>
