@@ -6,4 +6,4 @@ There is a design dissonance between the programming language that was used for 
 Re-factoring to Rust CAN (because it compiles to machine code) be faster than C#.
 
 This is a fork to refactor Cajonic to Rust.
-As of writing this, I do not know how to code in Rust.
+As of writing this, I do not know how to code in Rust. However, learning a new language might infuse some new life into this project.
