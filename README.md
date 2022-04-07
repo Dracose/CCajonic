@@ -5,5 +5,5 @@ There is a design dissonance between the programming language that was used for 
 
 Re-factoring to C CAN be faster than C#.
 
-This is a fork to refactor Cajonic to C.
+This is a fork to refactor Cajonic to C, using the GTK UI-Framework.
 As of writing this, I do not know how to code in C. However, learning a new language might infuse some new life into this project.
